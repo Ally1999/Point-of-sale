@@ -4,14 +4,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const config = {
-  server: process.env.DB_SERVER || 'localhost',
-  database: process.env.DB_DATABASE || 'POS_DB',
-  user: process.env.DB_USER || 'sa',
-  password: process.env.DB_PASSWORD || '',
-  port: parseInt(process.env.DB_PORT || '1433'),
+  server: 'localhost',
+  database: 'POS_DB',
+  user: 'sa',
+  password: '123',
+  port: parseInt('1433'),
   options: {
-    encrypt: process.env.DB_TRUST_CERT === 'true' ? false : true,
-    trustServerCertificate: process.env.DB_TRUST_CERT === 'true',
+    encrypt: true,
+    trustServerCertificate: true,
     enableArithAbort: true
   }
 };
