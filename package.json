@@ -1,0 +1,18 @@
+{
+  "name": "point-of-sale",
+  "version": "1.0.0",
+  "description": "Point of Sale application with Vue.js, Node.js, and MS SQL",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+  },
+  "keywords": ["pos", "vue", "nodejs", "mssql"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+
