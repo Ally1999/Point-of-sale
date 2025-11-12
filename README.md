@@ -191,17 +191,10 @@ Point-of-sale/
 
 - Product images are stored in `backend/uploads/products/`
 - The application uses Mauritian rooes (Rs) as the currency symbol
-- Default VAT rate is 12% (common in Philippines)
+- Default VAT rate is 15% (common in Mauritius)
 - Barcode scanning works by entering the barcode in the search field and pressing Enter
 - Receipts can be printed using the browser's print function
 
-## Troubleshooting
-
-### Database Connection Issues
-- Verify MS SQL Server is running
-- Check database credentials in `backend/.env`
-- Ensure SQL Server allows SQL Server Authentication
-- Verify the database exists
 
 ### Image Upload Issues
 - Ensure `backend/uploads/products/` directory exists
@@ -212,7 +205,3 @@ Point-of-sale/
 - Backend default port: 3000
 - Frontend default port: 5173
 - Update ports in configuration files if needed
-
-## License
-
-MIT
