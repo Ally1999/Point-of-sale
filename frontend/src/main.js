@@ -7,12 +7,14 @@ import App from './App.vue'
 import POS from './views/POS.vue'
 import Products from './views/Products.vue'
 import Sales from './views/Sales.vue'
+import Reports from './views/Reports.vue'
 
 const routes = [
   { path: '/', redirect: '/pos' },
   { path: '/pos', component: POS },
   { path: '/products', component: Products },
-  { path: '/sales', component: Sales }
+  { path: '/sales', component: Sales },
+  { path: '/reports', component: Reports }
 ]
 
 const router = createRouter({

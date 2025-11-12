@@ -23,9 +23,9 @@
             <td>{{ sale.SaleNumber }}</td>
             <td>{{ formatDate(sale.SaleDate) }}</td>
             <td>{{ sale.itemCount || '-' }}</td>
-            <td>₱{{ formatPrice(sale.SubTotal) }}</td>
-            <td>₱{{ formatPrice(sale.VATAmount) }}</td>
-            <td>₱{{ formatPrice(sale.TotalAmount) }}</td>
+            <td>Rs {{ formatPrice(sale.SubTotal) }}</td>
+            <td>Rs {{ formatPrice(sale.VATAmount) }}</td>
+            <td>Rs {{ formatPrice(sale.TotalAmount) }}</td>
             <td>{{ sale.PaymentName }}</td>
             <td>
               <button @click="viewReceipt(sale.SaleID)" class="btn btn-primary">View Receipt</button>
@@ -40,18 +40,18 @@
       <div class="modal-content receipt" id="receipt">
         <div class="receipt-header">
           <h2>Receipt</h2>
-          <p>{{ receiptData.saleNumber }}</p>
-          <p>{{ formatDate(receiptData.saleDate) }}</p>
+          <p>{{ receiptData.SaleNumber }}</p>
+          <p>{{ formatDate(receiptData.SaleDate) }}</p>
         </div>
         <div class="receipt-items">
           <div v-for="item in receiptData.items" :key="item.SaleItemID" class="receipt-item">
             <div class="receipt-item-name">{{ item.ProductName }}</div>
             <div class="receipt-item-details">
-              {{ item.Quantity }} × ₱{{ formatPrice(item.UnitPrice) }}
+              {{ item.Quantity }} × Rs {{ formatPrice(item.UnitPrice) }}
               <span v-if="item.DiscountAmount > 0" class="discount-text">
-                (Discount: -₱{{ formatPrice(item.DiscountAmount) }})
+                (Discount: -Rs {{ formatPrice(item.DiscountAmount) }})
               </span>
-              = ₱{{ formatPrice(item.LineTotal) }}
+              = Rs {{ formatPrice(item.LineTotal) }}
               <span v-if="item.IsVAT" class="vat-badge">VAT {{ item.VATRate }}%</span>
             </div>
           </div>
@@ -59,31 +59,23 @@
         <div class="receipt-summary">
           <div class="summary-row">
             <span>Subtotal:</span>
-            <span>₱{{ formatPrice(receiptData.subTotal) }}</span>
+            <span>Rs {{ formatPrice(receiptData.SubTotal) }}</span>
           </div>
-          <div class="summary-row" v-if="receiptData.discountAmount > 0">
+          <div class="summary-row" v-if="receiptData.DiscountAmount > 0">
             <span>Sale Discount:</span>
-            <span class="discount-text">-₱{{ formatPrice(receiptData.discountAmount) }}</span>
+            <span class="discount-text">-Rs {{ formatPrice(receiptData.DiscountAmount) }}</span>
           </div>
-          <div class="summary-row" v-if="receiptData.vatAmount > 0">
+          <div class="summary-row" v-if="receiptData.VATAmount > 0">
             <span>VAT:</span>
-            <span>₱{{ formatPrice(receiptData.vatAmount) }}</span>
+            <span>Rs {{ formatPrice(receiptData.VATAmount) }}</span>
           </div>
           <div class="summary-row total">
             <span>Total:</span>
-            <span>₱{{ formatPrice(receiptData.totalAmount) }}</span>
+            <span>Rs {{ formatPrice(receiptData.TotalAmount) }}</span>
           </div>
           <div class="summary-row">
             <span>Payment:</span>
-            <span>{{ receiptData.paymentName }}</span>
-          </div>
-          <div class="summary-row">
-            <span>Amount Paid:</span>
-            <span>₱{{ formatPrice(receiptData.amountPaid) }}</span>
-          </div>
-          <div class="summary-row" v-if="receiptData.changeAmount > 0">
-            <span>Change:</span>
-            <span>₱{{ formatPrice(receiptData.changeAmount) }}</span>
+            <span>{{ receiptData.PaymentName }}</span>
           </div>
         </div>
         <div class="receipt-footer">
@@ -152,7 +144,12 @@ export default {
       return parseFloat(price || 0).toFixed(2)
     },
     formatDate(date) {
-      return new Date(date).toLocaleString()
+      if (!date) return ''
+      try {
+        return new Date(date).toLocaleString()
+      } catch (e) {
+        return date
+      }
     }
   }
 }

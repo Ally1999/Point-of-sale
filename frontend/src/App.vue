@@ -7,6 +7,7 @@
           <router-link to="/pos" class="nav-link">POS</router-link>
           <router-link to="/products" class="nav-link">Products</router-link>
           <router-link to="/sales" class="nav-link">Sales</router-link>
+          <router-link to="/reports" class="nav-link">Reports</router-link>
         </div>
       </div>
     </nav>

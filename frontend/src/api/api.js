@@ -59,5 +59,16 @@ export const paymentsAPI = {
   getAll: () => api.get('/payments')
 }
 
+// Reports API
+export const reportsAPI = {
+  getSalesSummary: (params) => api.get('/reports/sales-summary', { params }),
+  getSalesByPayment: (params) => api.get('/reports/sales-by-payment', { params }),
+  getTopProducts: (params) => api.get('/reports/top-products', { params }),
+  getDailySales: (params) => api.get('/reports/daily-sales', { params }),
+  getProductSales: (params) => api.get('/reports/product-sales', { params }),
+  getVATReport: (params) => api.get('/reports/vat-report', { params }),
+  getVATSummary: (params) => api.get('/reports/vat-summary', { params })
+}
+
 export default api
 

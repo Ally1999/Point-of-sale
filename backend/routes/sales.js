@@ -67,9 +67,9 @@ router.post('/', async (req, res) => {
     await transaction.begin();
     
     // Calculate totals with item-level discounts
-    let subTotal = 0;
+    // First pass: calculate VAT-inclusive totals after item discounts
     let totalItemDiscounts = 0;
-    let vatAmount = 0;
+    const itemTotals = [];
     
     for (const item of items) {
       let lineTotal = item.quantity * item.unitPrice;
@@ -86,14 +86,16 @@ router.post('/', async (req, res) => {
         totalItemDiscounts += itemDiscountAmount;
       }
       
-      subTotal += lineTotal;
-      
-      // Calculate VAT on discounted amount
-      if (item.isVAT) {
-        const vatRate = item.vatRate || 0;
-        vatAmount += lineTotal * (vatRate / 100);
-      }
+      itemTotals.push({
+        lineTotal,
+        isVAT: item.isVAT,
+        vatRate: item.vatRate || 0,
+        excludeVAT: item.excludeVAT || false
+      });
     }
+    
+    // Calculate VAT-inclusive total before sale discount
+    const vatInclusiveBeforeSaleDiscount = itemTotals.reduce((sum, item) => sum + item.lineTotal, 0);
     
     // Apply sale-level discount
     let saleDiscountAmount = 0;
@@ -105,31 +107,56 @@ router.post('/', async (req, res) => {
       saleDiscountValue = saleDiscount.value;
       
       if (saleDiscount.type === 'percentage') {
-        saleDiscountAmount = subTotal * (saleDiscount.value / 100);
+        saleDiscountAmount = vatInclusiveBeforeSaleDiscount * (saleDiscount.value / 100);
       } else if (saleDiscount.type === 'amount') {
-        saleDiscountAmount = Math.min(saleDiscount.value, subTotal);
+        saleDiscountAmount = Math.min(saleDiscount.value, vatInclusiveBeforeSaleDiscount);
       }
-      subTotal -= saleDiscountAmount;
     }
     
-    const totalAmount = subTotal + vatAmount;
-    const changeAmount = amountPaid - totalAmount;
-    const saleNumber = 'SALE-' + Date.now() + '-' + uuidv4().substring(0, 8).toUpperCase();
+    // Calculate subtotal (VAT-exclusive) and VAT by extracting from VAT-inclusive prices
+    let subTotal = 0;
+    let vatAmount = 0;
     
-    // Store original subtotal (before sale discount, after item discounts)
-    const originalSubtotal = subTotal + saleDiscountAmount;
+    for (const item of itemTotals) {
+      let discountedLineTotal = item.lineTotal;
+      
+      // Apply proportional sale discount
+      if (vatInclusiveBeforeSaleDiscount > 0 && saleDiscountAmount > 0) {
+        const itemProportion = item.lineTotal / vatInclusiveBeforeSaleDiscount;
+        discountedLineTotal -= saleDiscountAmount * itemProportion;
+      }
+      
+      // Extract base price and VAT if VAT is included (and not excluded)
+      if (item.isVAT && item.vatRate > 0 && !item.excludeVAT) {
+        const vatMultiplier = 1 + (item.vatRate / 100);
+        const basePrice = discountedLineTotal / vatMultiplier;
+        const vat = discountedLineTotal - basePrice;
+        subTotal += basePrice;
+        vatAmount += vat;
+      } else {
+        // Non-VAT items or VAT excluded: price is already the base price
+        subTotal += discountedLineTotal;
+      }
+    }
+    
+    // Total is the VAT-inclusive total after all discounts
+    const totalAmount = vatInclusiveBeforeSaleDiscount - saleDiscountAmount;
+    // Default amountPaid to totalAmount if not provided
+    const finalAmountPaid = amountPaid !== undefined && amountPaid !== null ? amountPaid : totalAmount;
+    const changeAmount = finalAmountPaid - totalAmount;
+    const saleNumber = 'SALE-' + Date.now() + '-' + uuidv4().substring(0, 8).toUpperCase();
     
     // Create sale
     const saleRequest = new sql.Request(transaction);
     saleRequest.input('SaleNumber', sql.NVarChar, saleNumber);
-    saleRequest.input('SubTotal', sql.Decimal(18, 2), originalSubtotal); // Subtotal after item discounts, before sale discount
+    saleRequest.input('SubTotal', sql.Decimal(18, 2), subTotal); // Subtotal (VAT-exclusive) after all discounts
     saleRequest.input('DiscountType', sql.NVarChar, saleDiscountType);
     saleRequest.input('DiscountValue', sql.Decimal(18, 2), saleDiscountValue);
     saleRequest.input('DiscountAmount', sql.Decimal(18, 2), saleDiscountAmount);
     saleRequest.input('VATAmount', sql.Decimal(18, 2), vatAmount);
     saleRequest.input('TotalAmount', sql.Decimal(18, 2), totalAmount);
     saleRequest.input('PaymentTypeID', sql.Int, paymentTypeID);
-    saleRequest.input('AmountPaid', sql.Decimal(18, 2), amountPaid);
+    saleRequest.input('AmountPaid', sql.Decimal(18, 2), finalAmountPaid);
     saleRequest.input('ChangeAmount', sql.Decimal(18, 2), changeAmount);
     saleRequest.input('Notes', sql.NVarChar, notes || null);
     

@@ -40,7 +40,7 @@
             </td>
             <td>{{ product.ProductName }}</td>
             <td>{{ product.Barcode || '-' }}</td>
-            <td>Rs{{ formatPrice(product.Price) }}</td>
+            <td>Rs {{ formatPrice(product.Price) }}</td>
             <td>
               <span v-if="product.IsVAT" class="vat-badge">VAT {{ product.VATRate }}%</span>
               <span v-else class="non-vat-badge">Non-VAT</span>
@@ -167,7 +167,7 @@ export default {
         CategoryID: null,
         StockQuantity: 0,
         IsVAT: true,
-        VATRate: 12.00,
+        VATRate: 15.00,
         ImagePath: null
       }
     }
@@ -222,7 +222,7 @@ export default {
         CategoryID: product.CategoryID,
         StockQuantity: product.StockQuantity || 0,
         IsVAT: product.IsVAT === true || product.IsVAT === 1,
-        VATRate: product.VATRate || 12.00,
+        VATRate: product.VATRate || 15.00,
         ImagePath: product.ImagePath
       }
       this.imageFile = null
@@ -244,7 +244,7 @@ export default {
         CategoryID: null,
         StockQuantity: 0,
         IsVAT: true,
-        VATRate: 12.00,
+        VATRate: 15.00,
         ImagePath: null
       }
       this.imageFile = null

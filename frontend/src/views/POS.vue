@@ -30,7 +30,7 @@
               />
               <div class="product-info">
                 <div class="product-name">{{ product.ProductName }}</div>
-                <div class="product-price">Rs{{ formatPrice(product.Price) }}</div>
+                <div class="product-price">Rs {{ formatPrice(product.Price) }}</div>
                 <div class="product-barcode" v-if="product.Barcode">{{ product.Barcode }}</div>
               </div>
             </div>
@@ -52,14 +52,25 @@
               <div class="cart-item-info">
                 <div class="cart-item-name">{{ item.productName }}</div>
                 <div class="cart-item-details">
-                  <span>₱{{ formatPrice(item.unitPrice) }} × {{ item.quantity }}</span>
-                  <span v-if="item.isVAT" class="vat-badge">VAT {{ item.vatRate }}%</span>
+                  <span>Rs {{ formatPrice(item.unitPrice) }} × {{ item.quantity }}</span>
+                  <span v-if="item.isVAT && !item.excludeVAT" class="vat-badge">VAT {{ item.vatRate }}%</span>
+                  <span v-if="item.isVAT && item.excludeVAT" class="vat-excluded-badge">VAT Excluded</span>
                   <span v-if="item.discountAmount > 0" class="discount-badge">
-                    Discount: ₱{{ formatPrice(item.discountAmount) }}
+                    Discount: Rs {{ formatPrice(item.discountAmount) }}
                   </span>
                 </div>
                 <div class="cart-item-line-total">
-                  Line Total: ₱{{ formatPrice(getItemLineTotal(item)) }}
+                  Line Total: Rs {{ formatPrice(getItemLineTotal(item)) }}
+                </div>
+                <div class="cart-item-options" v-if="item.isVAT">
+                  <label class="checkbox-label">
+                    <input 
+                      type="checkbox" 
+                      v-model="item.excludeVAT"
+                      @change="updateVATExclusion(index)"
+                    />
+                    Exclude VAT
+                  </label>
                 </div>
                 <div class="cart-item-discount" v-if="!item.showDiscount">
                   <button @click="showItemDiscount(index)" class="btn-link">Add Discount</button>
@@ -69,7 +80,7 @@
                     <select v-model="item.discountType" class="input-small">
                       <option value="">Select Type</option>
                       <option value="percentage">Percentage (%)</option>
-                      <option value="amount">Amount (₱)</option>
+                      <option value="amount">Amount (Rs )</option>
                     </select>
                     <input
                       v-model.number="item.discountValue"
@@ -95,27 +106,27 @@
           <div class="cart-summary">
             <div class="summary-row">
               <span>Subtotal:</span>
-              <span>₱{{ formatPrice(originalSubtotal) }}</span>
+              <span>Rs {{ formatPrice(originalSubtotal) }}</span>
             </div>
             <div class="summary-row" v-if="totalItemDiscounts > 0">
               <span>Item Discounts:</span>
-              <span class="discount-text">-₱{{ formatPrice(totalItemDiscounts) }}</span>
+              <span class="discount-text">-Rs {{ formatPrice(totalItemDiscounts) }}</span>
             </div>
             <div class="summary-row" v-if="saleDiscountAmount > 0">
               <span>Sale Discount:</span>
-              <span class="discount-text">-₱{{ formatPrice(saleDiscountAmount) }}</span>
+              <span class="discount-text">-Rs {{ formatPrice(saleDiscountAmount) }}</span>
             </div>
             <div class="summary-row">
               <span>Subtotal After Discount:</span>
-              <span>₱{{ formatPrice(subtotal) }}</span>
+              <span>Rs {{ formatPrice(subtotal) }}</span>
             </div>
             <div class="summary-row" v-if="vatAmount > 0">
               <span>VAT:</span>
-              <span>₱{{ formatPrice(vatAmount) }}</span>
+              <span>Rs {{ formatPrice(vatAmount) }}</span>
             </div>
             <div class="summary-row total">
               <span>Total:</span>
-              <span>₱{{ formatPrice(totalAmount) }}</span>
+              <span>Rs {{ formatPrice(totalAmount) }}</span>
             </div>
           </div>
 
@@ -126,7 +137,7 @@
                 <select v-model="saleDiscount.type" class="input-small">
                   <option value="">None</option>
                   <option value="percentage">Percentage (%)</option>
-                  <option value="amount">Amount (₱)</option>
+                  <option value="amount">Amount (Rs )</option>
                 </select>
                 <input
                   v-model.number="saleDiscount.value"
@@ -149,25 +160,11 @@
                 </option>
               </select>
             </div>
-            <div class="form-group">
-              <label>Amount Paid</label>
-              <input
-                v-model.number="amountPaid"
-                type="number"
-                step="0.01"
-                class="input"
-                placeholder="0.00"
-              />
-            </div>
-            <div class="summary-row" v-if="changeAmount >= 0">
-              <span>Change:</span>
-              <span>₱{{ formatPrice(changeAmount) }}</span>
-            </div>
           </div>
 
           <div class="cart-actions">
             <button @click="clearCart" class="btn btn-secondary">Clear</button>
-            <button @click="processSale" :disabled="cart.length === 0 || !selectedPaymentType || amountPaid < totalAmount" class="btn btn-success">
+            <button @click="processSale" :disabled="cart.length === 0 || !selectedPaymentType" class="btn btn-success">
               Process Sale
             </button>
           </div>
@@ -180,18 +177,18 @@
       <div class="modal-content receipt" id="receipt">
         <div class="receipt-header">
           <h2>Receipt</h2>
-          <p>{{ receiptData.saleNumber }}</p>
-          <p>{{ formatDate(receiptData.saleDate) }}</p>
+          <p>{{ receiptData.SaleNumber }}</p>
+          <p>{{ formatDate(receiptData.SaleDate) }}</p>
         </div>
         <div class="receipt-items">
           <div v-for="item in receiptData.items" :key="item.SaleItemID" class="receipt-item">
             <div class="receipt-item-name">{{ item.ProductName }}</div>
             <div class="receipt-item-details">
-              {{ item.Quantity }} × ₱{{ formatPrice(item.UnitPrice) }}
+              {{ item.Quantity }} × Rs {{ formatPrice(item.UnitPrice) }}
               <span v-if="item.DiscountAmount > 0" class="discount-text">
-                (Discount: -₱{{ formatPrice(item.DiscountAmount) }})
+                (Discount: -Rs {{ formatPrice(item.DiscountAmount) }})
               </span>
-              = ₱{{ formatPrice(item.LineTotal) }}
+              = Rs {{ formatPrice(item.LineTotal) }}
               <span v-if="item.IsVAT" class="vat-badge">VAT {{ item.VATRate }}%</span>
             </div>
           </div>
@@ -199,31 +196,23 @@
         <div class="receipt-summary">
           <div class="summary-row">
             <span>Subtotal:</span>
-            <span>₱{{ formatPrice(receiptData.subTotal) }}</span>
+            <span>Rs {{ formatPrice(receiptData.SubTotal) }}</span>
           </div>
-          <div class="summary-row" v-if="receiptData.discountAmount > 0">
+          <div class="summary-row" v-if="receiptData.DiscountAmount > 0">
             <span>Sale Discount:</span>
-            <span class="discount-text">-₱{{ formatPrice(receiptData.discountAmount) }}</span>
+            <span class="discount-text">-Rs {{ formatPrice(receiptData.DiscountAmount) }}</span>
           </div>
-          <div class="summary-row" v-if="receiptData.vatAmount > 0">
+          <div class="summary-row" v-if="receiptData.VATAmount > 0">
             <span>VAT:</span>
-            <span>₱{{ formatPrice(receiptData.vatAmount) }}</span>
+            <span>Rs {{ formatPrice(receiptData.VATAmount) }}</span>
           </div>
           <div class="summary-row total">
             <span>Total:</span>
-            <span>₱{{ formatPrice(receiptData.totalAmount) }}</span>
+            <span>Rs {{ formatPrice(receiptData.TotalAmount) }}</span>
           </div>
           <div class="summary-row">
             <span>Payment:</span>
-            <span>{{ receiptData.paymentName }}</span>
-          </div>
-          <div class="summary-row">
-            <span>Amount Paid:</span>
-            <span>₱{{ formatPrice(receiptData.amountPaid) }}</span>
-          </div>
-          <div class="summary-row" v-if="receiptData.changeAmount > 0">
-            <span>Change:</span>
-            <span>₱{{ formatPrice(receiptData.changeAmount) }}</span>
+            <span>{{ receiptData.PaymentName }}</span>
           </div>
         </div>
         <div class="receipt-footer">
@@ -255,7 +244,6 @@ export default {
       cart: [],
       paymentTypes: [],
       selectedPaymentType: null,
-      amountPaid: 0,
       barcodeInput: '',
       showReceipt: false,
       receiptData: null,
@@ -278,7 +266,8 @@ export default {
       }, 0)
     },
     subtotal() {
-      let total = this.cart.reduce((sum, item) => {
+      // Calculate VAT-inclusive total after item discounts (before sale discount)
+      const vatInclusiveBeforeSaleDiscount = this.cart.reduce((sum, item) => {
         let lineTotal = item.unitPrice * item.quantity
         if (item.discountAmount) {
           lineTotal -= item.discountAmount
@@ -286,18 +275,37 @@ export default {
         return sum + lineTotal
       }, 0)
       
-      // Apply sale discount
-      if (this.saleDiscountAmount > 0) {
-        total -= this.saleDiscountAmount
+      // Calculate base total (VAT-exclusive) by extracting VAT from each item
+      let baseTotal = 0
+      for (const item of this.cart) {
+        let lineTotal = item.unitPrice * item.quantity
+        if (item.discountAmount) {
+          lineTotal -= item.discountAmount
+        }
+        
+        // Apply proportional sale discount
+        if (vatInclusiveBeforeSaleDiscount > 0 && this.saleDiscountAmount > 0) {
+          const itemProportion = lineTotal / vatInclusiveBeforeSaleDiscount
+          lineTotal -= this.saleDiscountAmount * itemProportion
+        }
+        
+        // Extract base price if VAT is included in the price (and not excluded)
+        if (item.isVAT && item.vatRate > 0 && !item.excludeVAT) {
+          const vatMultiplier = 1 + (item.vatRate / 100)
+          lineTotal = lineTotal / vatMultiplier
+        }
+        
+        baseTotal += lineTotal
       }
       
-      return total
+      return baseTotal
     },
     saleDiscountAmount() {
       if (!this.saleDiscount.type || this.saleDiscount.value <= 0) {
         return 0
       }
       
+      // Calculate subtotal before sale discount (VAT-inclusive prices)
       const baseSubtotal = this.cart.reduce((sum, item) => {
         let lineTotal = item.unitPrice * item.quantity
         if (item.discountAmount) {
@@ -314,22 +322,49 @@ export default {
       return 0
     },
     vatAmount() {
-      return this.cart.reduce((sum, item) => {
-        if (item.isVAT) {
+      // Calculate VAT-inclusive total after item discounts (before sale discount)
+      const vatInclusiveBeforeSaleDiscount = this.cart.reduce((sum, item) => {
+        let lineTotal = item.unitPrice * item.quantity
+        if (item.discountAmount) {
+          lineTotal -= item.discountAmount
+        }
+        return sum + lineTotal
+      }, 0)
+      
+      // Extract VAT from each item after applying sale discount proportionally
+      let totalVAT = 0
+      for (const item of this.cart) {
+        if (item.isVAT && item.vatRate > 0 && !item.excludeVAT) {
           let lineTotal = item.unitPrice * item.quantity
           if (item.discountAmount) {
             lineTotal -= item.discountAmount
           }
-          return sum + (lineTotal * (item.vatRate / 100))
+          
+          // Apply proportional sale discount
+          if (vatInclusiveBeforeSaleDiscount > 0 && this.saleDiscountAmount > 0) {
+            const itemProportion = lineTotal / vatInclusiveBeforeSaleDiscount
+            lineTotal -= this.saleDiscountAmount * itemProportion
+          }
+          
+          // Extract VAT from VAT-inclusive price
+          const vatMultiplier = 1 + (item.vatRate / 100)
+          const basePrice = lineTotal / vatMultiplier
+          const vat = lineTotal - basePrice
+          totalVAT += vat
         }
-        return sum
-      }, 0)
+      }
+      
+      return totalVAT
     },
     totalAmount() {
-      return this.subtotal + this.vatAmount
-    },
-    changeAmount() {
-      return this.amountPaid - this.totalAmount
+      // Total is the sum of all VAT-inclusive prices (after discounts)
+      return this.cart.reduce((sum, item) => {
+        let lineTotal = item.unitPrice * item.quantity
+        if (item.discountAmount) {
+          lineTotal -= item.discountAmount
+        }
+        return sum + lineTotal
+      }, 0) - this.saleDiscountAmount
     }
   },
   mounted() {
@@ -387,6 +422,7 @@ export default {
           quantity: 1,
           isVAT: product.IsVAT === true || product.IsVAT === 1,
           vatRate: parseFloat(product.VATRate || 0),
+          excludeVAT: false,
           discountType: '',
           discountValue: 0,
           discountAmount: 0,
@@ -398,13 +434,16 @@ export default {
       this.$refs.barcodeInputRef?.focus()
     },
     showItemDiscount(index) {
-      this.$set(this.cart[index], 'showDiscount', true)
+      this.cart[index].showDiscount = true
     },
     hideItemDiscount(index) {
-      this.$set(this.cart[index], 'showDiscount', false)
-      this.$set(this.cart[index], 'discountType', '')
-      this.$set(this.cart[index], 'discountValue', 0)
-      this.$set(this.cart[index], 'discountAmount', 0)
+      this.cart[index].showDiscount = false
+      this.cart[index].discountType = ''
+      this.cart[index].discountValue = 0
+      this.cart[index].discountAmount = 0
+    },
+    updateVATExclusion(index) {
+      // VAT exclusion is handled automatically by computed properties
     },
     calculateItemDiscount(index) {
       const item = this.cart[index]
@@ -424,6 +463,7 @@ export default {
       // Triggered by @input, computed property handles calculation
     },
     getItemLineTotal(item) {
+      // Line total is the VAT-inclusive price (after discounts)
       let lineTotal = item.unitPrice * item.quantity
       if (item.discountAmount) {
         lineTotal -= item.discountAmount
@@ -445,14 +485,13 @@ export default {
     },
     clearCart() {
       this.cart = []
-      this.amountPaid = 0
       this.saleDiscount = {
         type: '',
         value: 0
       }
     },
     async processSale() {
-      if (this.cart.length === 0 || !this.selectedPaymentType || this.amountPaid < this.totalAmount) {
+      if (this.cart.length === 0 || !this.selectedPaymentType) {
         this.toast.error('Please complete all required fields')
         return
       }
@@ -465,7 +504,6 @@ export default {
             discountValue: item.discountValue || 0
           })),
           paymentTypeID: this.selectedPaymentType,
-          amountPaid: this.amountPaid,
           notes: '',
           saleDiscount: this.saleDiscount.type ? this.saleDiscount : null
         }
@@ -491,7 +529,12 @@ export default {
       return parseFloat(price || 0).toFixed(2)
     },
     formatDate(date) {
-      return new Date(date).toLocaleString()
+      if (!date) return ''
+      try {
+        return new Date(date).toLocaleString()
+      } catch (e) {
+        return date
+      }
     }
   },
   watch: {
@@ -682,6 +725,36 @@ export default {
   border-radius: 3px;
   font-size: 11px;
   font-weight: 600;
+}
+
+.vat-excluded-badge {
+  background: #6c757d;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cart-item-options {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
 }
 
 .cart-item-actions {
