@@ -204,9 +204,8 @@ router.post('/', async (req, res) => {
       
       // Extract base price and VAT if VAT is included (and not excluded)
       if (item.isVAT && item.vatRate > 0 && !item.excludeVAT) {
-        const vatMultiplier = 1 + (item.vatRate / 100);
-        const basePrice = discountedLineTotal / vatMultiplier;
-        const vat = discountedLineTotal - basePrice;
+        const vat = (discountedLineTotal * item.vatRate) / 100;
+        const basePrice = discountedLineTotal - vat;
         subTotal += basePrice;
         vatAmount += vat;
       } else {

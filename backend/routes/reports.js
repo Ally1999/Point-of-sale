@@ -224,12 +224,12 @@ router.get('/vat-report', async (req, res) => {
     
     // Process the data to calculate VAT collected vs excluded
     const processedData = result.recordset.map(item => {
+      const lineTotal = parseFloat(item.LineTotal);
       const vatRate = parseFloat(item.VATRate) / 100;
-      const vatMultiplier = 1 + vatRate;
       
-      // Calculate expected VAT if VAT was included
-      const expectedBasePrice = parseFloat(item.LineTotal) / vatMultiplier;
-      const expectedVAT = parseFloat(item.LineTotal) - expectedBasePrice;
+      // Calculate expected VAT based on VAT-inclusive price
+      const expectedVAT = lineTotal * vatRate;
+      const expectedBasePrice = lineTotal - expectedVAT;
       
       // Calculate actual VAT collected for this item
       // Allocate actual VAT from sale proportionally based on expected VAT
@@ -240,10 +240,9 @@ router.get('/vat-report', async (req, res) => {
       let totalExpectedVATForSale = 0;
       saleItems.forEach(saleItem => {
         if (saleItem.IsVAT && saleItem.VATRate > 0) {
+          const saleItemLineTotal = parseFloat(saleItem.LineTotal);
           const itemVATRate = parseFloat(saleItem.VATRate) / 100;
-          const itemVATMultiplier = 1 + itemVATRate;
-          const itemExpectedBasePrice = parseFloat(saleItem.LineTotal) / itemVATMultiplier;
-          const itemExpectedVAT = parseFloat(saleItem.LineTotal) - itemExpectedBasePrice;
+          const itemExpectedVAT = saleItemLineTotal * itemVATRate;
           totalExpectedVATForSale += itemExpectedVAT;
         }
       });
