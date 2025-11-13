@@ -31,8 +31,8 @@
           <tr v-for="product in filteredProducts" :key="product.ProductID">
             <td>
               <img
-                v-if="product.ImagePath"
-                :src="`http://localhost:3000${product.ImagePath}`"
+                v-if="product.ImageBase64"
+                :src="product.ImageBase64"
                 :alt="product.ProductName"
                 class="product-thumb"
               />
@@ -121,9 +121,6 @@
           <div class="form-group">
             <label>Product Image</label>
             <input @change="handleImageChange" type="file" accept="image/*" class="input" />
-            <div v-if="formData.ImagePath && !imageFile" class="current-image">
-              <img :src="`http://localhost:3000${formData.ImagePath}`" alt="Current" class="preview-image" />
-            </div>
             <div v-if="imagePreview" class="current-image">
               <img :src="imagePreview" alt="Preview" class="preview-image" />
             </div>
@@ -155,7 +152,6 @@ export default {
       searchQuery: '',
       showModal: false,
       editingProduct: null,
-      imageFile: null,
       imagePreview: null,
       formData: {
         ProductName: '',
@@ -168,7 +164,7 @@ export default {
         StockQuantity: 0,
         IsVAT: true,
         VATRate: 15.00,
-        ImagePath: null
+        ImageBase64: null
       }
     }
   },
@@ -223,10 +219,9 @@ export default {
         StockQuantity: product.StockQuantity || 0,
         IsVAT: product.IsVAT === true || product.IsVAT === 1,
         VATRate: product.VATRate || 15.00,
-        ImagePath: product.ImagePath
+        ImageBase64: product.ImageBase64 || null
       }
-      this.imageFile = null
-      this.imagePreview = null
+      this.imagePreview = product.ImageBase64 || null
       this.showModal = true
     },
     closeModal() {
@@ -245,27 +240,31 @@ export default {
         StockQuantity: 0,
         IsVAT: true,
         VATRate: 15.00,
-        ImagePath: null
+        ImageBase64: null
       }
-      this.imageFile = null
       this.imagePreview = null
     },
     handleImageChange(event) {
       const file = event.target.files[0]
       if (file) {
-        this.imageFile = file
         const reader = new FileReader()
         reader.onload = (e) => {
-          this.imagePreview = e.target.result
+          this.formData.ImageBase64 = e.target.result
+          this.imagePreview = this.formData.ImageBase64
         }
         reader.readAsDataURL(file)
+      } else {
+        this.formData.ImageBase64 = null
+        this.imagePreview = null
       }
     },
     async saveProduct() {
       try {
-        const data = { ...this.formData }
-        if (this.imageFile) {
-          data.image = this.imageFile
+        const data = {
+          ...this.formData,
+          CategoryID: this.formData.CategoryID || null,
+          StockQuantity: this.formData.StockQuantity || 0,
+          ImageBase64: this.formData.ImageBase64 || null
         }
 
         if (this.editingProduct) {

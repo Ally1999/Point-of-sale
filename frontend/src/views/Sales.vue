@@ -52,7 +52,8 @@
                 (Discount: -Rs {{ formatPrice(item.DiscountAmount) }})
               </span>
               = Rs {{ formatPrice(item.LineTotal) }}
-              <span v-if="item.IsVAT" class="vat-badge">VAT {{ item.VATRate }}%</span>
+              <span v-if="item.IsVAT && !item.ExcludeVAT" class="vat-badge">VAT {{ item.VATRate }}%</span>
+              <span v-if="item.IsVAT && item.ExcludeVAT" class="vat-excluded-badge">VAT Excluded</span>
             </div>
           </div>
         </div>
@@ -204,6 +205,14 @@ export default {
   font-size: 11px;
   font-weight: 600;
 }
+.vat-excluded-badge {
+  background: #6c757d;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
 
 .discount-text {
   color: #dc3545;
@@ -330,6 +339,7 @@ export default {
   }
   
   .vat-badge,
+  .vat-excluded-badge,
   .discount-text {
     font-size: 7pt !important;
     padding: 1px 3px !important;

@@ -25,7 +25,7 @@ CREATE TABLE Products (
     IsVAT BIT DEFAULT 1, -- 1 for VAT, 0 for non-VAT
     VATRate DECIMAL(5,2) DEFAULT 0.00,
     CategoryID INT,
-    ImagePath NVARCHAR(500),
+    ImageBase64 NVARCHAR(MAX),
     StockQuantity INT DEFAULT 0,
     IsActive BIT DEFAULT 1,
     CreatedAt DATETIME DEFAULT GETDATE(),
@@ -71,6 +71,7 @@ CREATE TABLE SaleItems (
     UnitPrice DECIMAL(18,2) NOT NULL,
     IsVAT BIT DEFAULT 1,
     VATRate DECIMAL(5,2) DEFAULT 0.00,
+    ExcludeVAT BIT DEFAULT 0,
     LineTotal DECIMAL(18,2) NOT NULL,
     FOREIGN KEY (SaleID) REFERENCES Sales(SaleID) ON DELETE CASCADE,
     FOREIGN KEY (ProductID) REFERENCES Products(ProductID)

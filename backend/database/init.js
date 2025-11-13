@@ -38,7 +38,7 @@ export const initializeDatabase = async () => {
           IsVAT BIT DEFAULT 1,
           VATRate DECIMAL(5,2) DEFAULT 0.00,
           CategoryID INT,
-          ImagePath NVARCHAR(500),
+          ImageBase64 NVARCHAR(MAX),
           StockQuantity INT DEFAULT 0,
           IsActive BIT DEFAULT 1,
           CreatedAt DATETIME DEFAULT GETDATE(),
@@ -132,6 +132,7 @@ export const initializeDatabase = async () => {
           DiscountAmount DECIMAL(18,2) DEFAULT 0.00,
           IsVAT BIT DEFAULT 1,
           VATRate DECIMAL(5,2) DEFAULT 0.00,
+          ExcludeVAT BIT DEFAULT 0,
           LineTotal DECIMAL(18,2) NOT NULL,
           FOREIGN KEY (SaleID) REFERENCES Sales(SaleID) ON DELETE CASCADE,
           FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
@@ -156,6 +157,10 @@ export const initializeDatabase = async () => {
       await request.query(`
         IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleItems]') AND name = 'DiscountAmount')
         ALTER TABLE SaleItems ADD DiscountAmount DECIMAL(18,2) DEFAULT 0.00
+      `);
+      await request.query(`
+        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleItems]') AND name = 'ExcludeVAT')
+        ALTER TABLE SaleItems ADD ExcludeVAT BIT DEFAULT 0
       `);
     } catch (error) {
       console.error('Error adding discount columns to SaleItems:', error.message);

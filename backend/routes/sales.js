@@ -274,11 +274,12 @@ router.post('/', async (req, res) => {
       itemRequest.input('DiscountAmount', sql.Decimal(18, 2), itemDiscountAmount);
       itemRequest.input('IsVAT', sql.Bit, item.isVAT ? 1 : 0);
       itemRequest.input('VATRate', sql.Decimal(5, 2), item.vatRate || 0);
+      itemRequest.input('ExcludeVAT', sql.Bit, item.excludeVAT ? 1 : 0);
       itemRequest.input('LineTotal', sql.Decimal(18, 2), lineTotal);
       
       await itemRequest.query(`
-        INSERT INTO SaleItems (SaleID, ProductID, ProductName, Barcode, Quantity, UnitPrice, DiscountType, DiscountValue, DiscountAmount, IsVAT, VATRate, LineTotal)
-        VALUES (@SaleID, @ProductID, @ProductName, @Barcode, @Quantity, @UnitPrice, @DiscountType, @DiscountValue, @DiscountAmount, @IsVAT, @VATRate, @LineTotal)
+        INSERT INTO SaleItems (SaleID, ProductID, ProductName, Barcode, Quantity, UnitPrice, DiscountType, DiscountValue, DiscountAmount, IsVAT, VATRate, ExcludeVAT, LineTotal)
+        VALUES (@SaleID, @ProductID, @ProductName, @Barcode, @Quantity, @UnitPrice, @DiscountType, @DiscountValue, @DiscountAmount, @IsVAT, @VATRate, @ExcludeVAT, @LineTotal)
       `);
       
       // Update stock quantity

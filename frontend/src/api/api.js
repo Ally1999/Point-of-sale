@@ -12,32 +12,8 @@ export const productsAPI = {
   getAll: () => api.get('/products'),
   getById: (id) => api.get(`/products/${id}`),
   getByBarcode: (barcode) => api.get(`/products/barcode/${barcode}`),
-  create: (data) => {
-    const formData = new FormData()
-    Object.keys(data).forEach(key => {
-      if (key === 'image' && data[key]) {
-        formData.append('image', data[key])
-      } else if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key])
-      }
-    })
-    return api.post('/products', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-  },
-  update: (id, data) => {
-    const formData = new FormData()
-    Object.keys(data).forEach(key => {
-      if (key === 'image' && data[key]) {
-        formData.append('image', data[key])
-      } else if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, data[key])
-      }
-    })
-    return api.put(`/products/${id}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-  },
+  create: (data) => api.post('/products', data),
+  update: (id, data) => api.put(`/products/${id}`, data),
   delete: (id) => api.delete(`/products/${id}`)
 }
 

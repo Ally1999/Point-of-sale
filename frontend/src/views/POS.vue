@@ -77,17 +77,13 @@
                 </div>
                 <div class="cart-item-discount-form" v-else>
                   <div class="form-row-small">
-                    <select v-model="item.discountType" class="input-small">
-                      <option value="">Select Type</option>
-                      <option value="percentage">Percentage (%)</option>
-                      <option value="amount">Amount (Rs )</option>
-                    </select>
                     <input
                       v-model.number="item.discountValue"
                       type="number"
                       step="0.01"
+                      min="0"
                       class="input-small"
-                      placeholder="Value"
+                      placeholder="Discount amount (Rs)"
                       @input="calculateItemDiscount(index)"
                     />
                     <button @click="hideItemDiscount(index)" class="btn btn-secondary">Cancel</button>
@@ -132,22 +128,15 @@
 
           <div class="discount-section">
             <div class="form-group">
-              <label>Sale Discount</label>
-              <div class="form-row-small">
-                <select v-model="saleDiscount.type" class="input-small">
-                  <option value="">None</option>
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="amount">Amount (Rs )</option>
-                </select>
-                <input
-                  v-model.number="saleDiscount.value"
-                  type="number"
-                  step="0.01"
-                  class="input-small"
-                  placeholder="Value"
-                  @input="calculateSaleDiscount"
-                />
-              </div>
+              <label>Sale Discount (Amount)</label>
+              <input
+                v-model.number="saleDiscountValue"
+                type="number"
+                step="0.01"
+                min="0"
+                class="input"
+                placeholder="Enter discount amount"
+              />
             </div>
           </div>
 
@@ -189,7 +178,8 @@
                 (Discount: -Rs {{ formatPrice(item.DiscountAmount) }})
               </span>
               = Rs {{ formatPrice(item.LineTotal) }}
-              <span v-if="item.IsVAT" class="vat-badge">VAT {{ item.VATRate }}%</span>
+              <span v-if="item.IsVAT && !item.ExcludeVAT" class="vat-badge">VAT {{ item.VATRate }}%</span>
+              <span v-if="item.IsVAT && item.ExcludeVAT" class="vat-excluded-badge">VAT Excluded</span>
             </div>
           </div>
         </div>
@@ -247,10 +237,7 @@ export default {
       barcodeInput: '',
       showReceipt: false,
       receiptData: null,
-      saleDiscount: {
-        type: '',
-        value: 0
-      }
+      saleDiscountValue: 0
     }
   },
   computed: {
@@ -301,11 +288,6 @@ export default {
       return baseTotal
     },
     saleDiscountAmount() {
-      if (!this.saleDiscount.type || this.saleDiscount.value <= 0) {
-        return 0
-      }
-      
-      // Calculate subtotal before sale discount (VAT-inclusive prices)
       const baseSubtotal = this.cart.reduce((sum, item) => {
         let lineTotal = item.unitPrice * item.quantity
         if (item.discountAmount) {
@@ -314,12 +296,12 @@ export default {
         return sum + lineTotal
       }, 0)
       
-      if (this.saleDiscount.type === 'percentage') {
-        return baseSubtotal * (this.saleDiscount.value / 100)
-      } else if (this.saleDiscount.type === 'amount') {
-        return Math.min(this.saleDiscount.value, baseSubtotal)
+      const discountValue = Number(this.saleDiscountValue) || 0
+      if (discountValue <= 0) {
+        return 0
       }
-      return 0
+      
+      return Math.min(discountValue, baseSubtotal)
     },
     vatAmount() {
       // Calculate VAT-inclusive total after item discounts (before sale discount)
@@ -423,7 +405,6 @@ export default {
           isVAT: product.IsVAT === true || product.IsVAT === 1,
           vatRate: parseFloat(product.VATRate || 0),
           excludeVAT: false,
-          discountType: '',
           discountValue: 0,
           discountAmount: 0,
           showDiscount: false
@@ -438,7 +419,6 @@ export default {
     },
     hideItemDiscount(index) {
       this.cart[index].showDiscount = false
-      this.cart[index].discountType = ''
       this.cart[index].discountValue = 0
       this.cart[index].discountAmount = 0
     },
@@ -447,20 +427,15 @@ export default {
     },
     calculateItemDiscount(index) {
       const item = this.cart[index]
-      if (!item.discountType || item.discountValue <= 0) {
+      const discountValue = Number(item.discountValue) || 0
+      if (discountValue <= 0) {
         item.discountAmount = 0
         return
       }
       
       const lineTotal = item.unitPrice * item.quantity
-      if (item.discountType === 'percentage') {
-        item.discountAmount = lineTotal * (item.discountValue / 100)
-      } else if (item.discountType === 'amount') {
-        item.discountAmount = Math.min(item.discountValue, lineTotal)
-      }
-    },
-    calculateSaleDiscount() {
-      // Triggered by @input, computed property handles calculation
+      item.discountAmount = Math.min(discountValue, lineTotal)
+      item.discountValue = Math.min(discountValue, lineTotal)
     },
     getItemLineTotal(item) {
       // Line total is the VAT-inclusive price (after discounts)
@@ -485,10 +460,7 @@ export default {
     },
     clearCart() {
       this.cart = []
-      this.saleDiscount = {
-        type: '',
-        value: 0
-      }
+      this.saleDiscountValue = 0
     },
     async processSale() {
       if (this.cart.length === 0 || !this.selectedPaymentType) {
@@ -500,12 +472,12 @@ export default {
         const saleData = {
           items: this.cart.map(item => ({
             ...item,
-            discountType: item.discountType || null,
+            discountType: item.discountValue > 0 ? 'amount' : null,
             discountValue: item.discountValue || 0
           })),
           paymentTypeID: this.selectedPaymentType,
           notes: '',
-          saleDiscount: this.saleDiscount.type ? this.saleDiscount : null
+          saleDiscount: this.saleDiscountValue > 0 ? { type: 'amount', value: this.saleDiscountValue } : null
         }
 
         const response = await salesAPI.create(saleData)
