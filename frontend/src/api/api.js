@@ -51,7 +51,8 @@ export const categoriesAPI = {
 export const salesAPI = {
   getAll: () => api.get('/sales'),
   getById: (id) => api.get(`/sales/${id}`),
-  create: (data) => api.post('/sales', data)
+  create: (data) => api.post('/sales', data),
+  printThermalReceipt: (saleId, options = {}) => api.post(`/sales/${saleId}/print-thermal-receipt`, options)
 }
 
 // Payments API

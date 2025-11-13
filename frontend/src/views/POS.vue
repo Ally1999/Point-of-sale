@@ -219,6 +219,7 @@
           <p>Thank you for your purchase!</p>
         </div>
         <div class="receipt-actions">
+          <button @click="printThermalReceipt" class="btn btn-primary">Print Receipt</button>
           <button @click="closeReceipt" class="btn btn-secondary">Close</button>
         </div>
       </div>
@@ -514,6 +515,44 @@ export default {
         this.toast.success('Sale processed successfully')
       } catch (error) {
         this.toast.error('Failed to process sale')
+        console.error(error)
+      }
+    },
+    async printThermalReceipt() {
+      if (!this.receiptData?.SaleID) {
+        this.toast.error('Receipt data not available')
+        return
+      }
+
+      try {
+        const { data } = await salesAPI.printThermalReceipt(this.receiptData.SaleID, {
+          width: 300,
+          selectedPrintType: 'thermal'
+        })
+
+        const payload = data?.payload
+        if (!data?.success || !payload?.htmlContent) {
+          throw new Error('Invalid receipt payload')
+        }
+
+        const printWindow = window.open('', '_blank')
+        if (!printWindow) {
+          this.toast.error('Please allow pop-ups to print the receipt')
+          return
+        }
+
+        printWindow.document.write(payload.htmlContent)
+        printWindow.document.close()
+        printWindow.focus()
+
+        setTimeout(() => {
+          printWindow.print()
+          setTimeout(() => {
+            printWindow.close()
+          }, 500)
+        }, 300)
+      } catch (error) {
+        this.toast.error('Failed to generate printable receipt')
         console.error(error)
       }
     },
