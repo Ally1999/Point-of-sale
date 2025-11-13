@@ -82,7 +82,6 @@
           <p>Thank you for your purchase!</p>
         </div>
         <div class="receipt-actions">
-          <button @click="printReceipt" class="btn btn-primary">Print</button>
           <button @click="closeReceipt" class="btn btn-secondary">Close</button>
         </div>
       </div>
@@ -132,9 +131,6 @@ export default {
         this.toast.error('Failed to load receipt')
         console.error(error)
       }
-    },
-    printReceipt() {
-      window.print()
     },
     closeReceipt() {
       this.showReceipt = false
@@ -249,6 +245,114 @@ export default {
 
 .receipt-actions .btn {
   flex: 1;
+}
+
+@media print {
+  /* Style receipt for 57mm thermal printer */
+  .modal-content.receipt {
+    width: 57mm !important;
+    max-width: 57mm !important;
+    padding: 5mm 3mm !important;
+    font-size: 10pt !important;
+    line-height: 1.2 !important;
+  }
+  
+  .receipt-header {
+    text-align: center !important;
+    margin-bottom: 8px !important;
+    padding-bottom: 8px !important;
+    border-bottom: 1px dashed #000 !important;
+  }
+  
+  .receipt-header h2 {
+    font-size: 14pt !important;
+    font-weight: bold !important;
+    margin: 0 0 4px 0 !important;
+  }
+  
+  .receipt-header p {
+    font-size: 9pt !important;
+    margin: 2px 0 !important;
+  }
+  
+  .receipt-items {
+    margin-bottom: 8px !important;
+  }
+  
+  .receipt-item {
+    padding: 4px 0 !important;
+    border-bottom: 1px dotted #ccc !important;
+    font-size: 9pt !important;
+  }
+  
+  .receipt-item-name {
+    font-weight: 600 !important;
+    margin-bottom: 2px !important;
+    font-size: 9pt !important;
+  }
+  
+  .receipt-item-details {
+    font-size: 8pt !important;
+    color: #333 !important;
+    line-height: 1.3 !important;
+  }
+  
+  .receipt-summary {
+    border-top: 1px dashed #000 !important;
+    padding-top: 8px !important;
+    margin-bottom: 8px !important;
+    font-size: 9pt !important;
+  }
+  
+  .receipt-summary .summary-row {
+    padding: 3px 0 !important;
+    font-size: 9pt !important;
+  }
+  
+  .receipt-summary .summary-row.total {
+    font-size: 11pt !important;
+    font-weight: bold !important;
+    border-top: 1px dashed #000 !important;
+    padding-top: 6px !important;
+    margin-top: 6px !important;
+  }
+  
+  .receipt-footer {
+    text-align: center !important;
+    padding-top: 8px !important;
+    border-top: 1px dashed #000 !important;
+    font-size: 9pt !important;
+    margin-top: 8px !important;
+  }
+  
+  .receipt-footer p {
+    margin: 4px 0 !important;
+  }
+  
+  .vat-badge,
+  .discount-text {
+    font-size: 7pt !important;
+    padding: 1px 3px !important;
+  }
+  
+  .receipt-actions {
+    display: none !important;
+  }
+  
+  .receipt {
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+  }
+  
+  .receipt-item {
+    page-break-inside: avoid !important;
+  }
+  
+  @page {
+    margin: 0 !important;
+    size: 57mm auto !important;
+  }
 }
 </style>
 

@@ -219,7 +219,6 @@
           <p>Thank you for your purchase!</p>
         </div>
         <div class="receipt-actions">
-          <button @click="printReceipt" class="btn btn-primary">Print</button>
           <button @click="closeReceipt" class="btn btn-secondary">Close</button>
         </div>
       </div>
@@ -517,9 +516,6 @@ export default {
         this.toast.error('Failed to process sale')
         console.error(error)
       }
-    },
-    printReceipt() {
-      window.print()
     },
     closeReceipt() {
       this.showReceipt = false
@@ -876,5 +872,6 @@ export default {
     grid-template-columns: 1fr;
   }
 }
+
 </style>
 

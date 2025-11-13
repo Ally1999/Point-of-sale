@@ -110,10 +110,7 @@ http://localhost:5173
 
 The system comes with these payment types pre-configured:
 - Cash
-- Credit Card
-- Debit Card
-- Mobile Payment
-- Check
+- Juice
 
 ## Notes
 

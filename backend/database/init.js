@@ -168,10 +168,7 @@ export const initializeDatabase = async () => {
         await request.query(`
           INSERT INTO PaymentTypes (PaymentName, Description) VALUES
           ('Cash', 'Cash payment'),
-          ('Credit Card', 'Credit card payment'),
-          ('Debit Card', 'Debit card payment'),
-          ('Mobile Payment', 'Mobile payment (GCash, PayMaya, etc.)'),
-          ('Check', 'Check payment')
+          ('Juice', 'Juice payment')
         `);
       }
     } catch (error) {
