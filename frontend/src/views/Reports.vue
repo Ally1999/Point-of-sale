@@ -38,6 +38,11 @@
 
       <!-- Sales Summary -->
       <div v-if="activeTab === 'summary'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportSalesSummary" class="btn btn-primary" :disabled="!salesSummary || loading">
+            📥 Export to Excel
+          </button>
+        </div>
         <div v-if="loading" class="loading">Loading...</div>
         <div v-else-if="salesSummary" class="summary-grid">
           <div class="summary-card">
@@ -69,6 +74,11 @@
 
       <!-- Sales by Payment Method -->
       <div v-if="activeTab === 'payment'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportSalesByPayment" class="btn btn-primary" :disabled="salesByPayment.length === 0 || loading">
+            📥 Export to Excel
+          </button>
+        </div>
         <div v-if="loading" class="loading">Loading...</div>
         <div v-else>
           <table class="table">
@@ -99,6 +109,11 @@
 
       <!-- Top Products -->
       <div v-if="activeTab === 'products'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportTopProducts" class="btn btn-primary" :disabled="topProducts.length === 0 || loading">
+            📥 Export to Excel
+          </button>
+        </div>
         <div v-if="loading" class="loading">Loading...</div>
         <div v-else>
           <table class="table">
@@ -127,6 +142,11 @@
 
       <!-- Daily Sales -->
       <div v-if="activeTab === 'daily'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportDailySales" class="btn btn-primary" :disabled="dailySales.length === 0 || loading">
+            📥 Export to Excel
+          </button>
+        </div>
         <div v-if="loading" class="loading">Loading...</div>
         <div v-else>
           <table class="table">
@@ -159,6 +179,11 @@
 
       <!-- Product Sales Detail -->
       <div v-if="activeTab === 'product-detail'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportProductSales" class="btn btn-primary" :disabled="productSales.length === 0 || loading">
+            📥 Export to Excel
+          </button>
+        </div>
         <div v-if="loading" class="loading">Loading...</div>
         <div v-else>
           <table class="table">
@@ -193,6 +218,11 @@
 
       <!-- VAT Report -->
       <div v-if="activeTab === 'vat'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportVATReport" class="btn btn-primary" :disabled="!vatReport || loading">
+            📥 Export to Excel
+          </button>
+        </div>
         <div v-if="loading" class="loading">Loading...</div>
         <div v-else-if="vatReport">
           <div class="summary-grid" style="margin-bottom: 30px;">
@@ -275,6 +305,11 @@
 
       <!-- VAT Summary by Date -->
       <div v-if="activeTab === 'vat-summary'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportVATSummary" class="btn btn-primary" :disabled="vatSummary.length === 0 || loading">
+            📥 Export to Excel
+          </button>
+        </div>
         <div v-if="loading" class="loading">Loading...</div>
         <div v-else>
           <table class="table">
@@ -316,6 +351,7 @@
 <script>
 import { reportsAPI } from '../api/api.js'
 import { useToast } from 'vue-toastification'
+import * as XLSX from 'xlsx'
 
 export default {
   name: 'Reports',
@@ -456,6 +492,156 @@ export default {
       } catch (e) {
         return date
       }
+    },
+    exportToExcel(data, filename, sheetName = 'Sheet1') {
+      try {
+        const ws = XLSX.utils.json_to_sheet(data)
+        const wb = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(wb, ws, sheetName)
+        XLSX.writeFile(wb, filename)
+        this.toast.success('Excel file downloaded successfully')
+      } catch (error) {
+        this.toast.error('Failed to export to Excel')
+        console.error(error)
+      }
+    },
+    exportSalesSummary() {
+      if (!this.salesSummary) return
+      
+      const data = [
+        { Metric: 'Total Sales', Value: this.salesSummary.TotalSales || 0 },
+        { Metric: 'Total Revenue', Value: `Rs ${this.formatPrice(this.salesSummary.TotalRevenue)}` },
+        { Metric: 'Total Subtotal', Value: `Rs ${this.formatPrice(this.salesSummary.TotalSubtotal)}` },
+        { Metric: 'Total VAT', Value: `Rs ${this.formatPrice(this.salesSummary.TotalVAT)}` },
+        { Metric: 'Total Discounts', Value: `Rs ${this.formatPrice(this.salesSummary.TotalDiscounts)}` },
+        { Metric: 'Total Amount Paid', Value: `Rs ${this.formatPrice(this.salesSummary.TotalAmountPaid)}` },
+        { Metric: 'Total Change', Value: `Rs ${this.formatPrice(this.salesSummary.TotalChange)}` }
+      ]
+      
+      const dateRange = this.getDateRangeString()
+      this.exportToExcel(data, `Sales_Summary_${dateRange}.xlsx`, 'Sales Summary')
+    },
+    exportSalesByPayment() {
+      if (this.salesByPayment.length === 0) return
+      
+      const data = this.salesByPayment.map(item => ({
+        'Payment Method': item.PaymentName || 'Unknown',
+        'Sale Count': item.SaleCount,
+        'Total Revenue': `Rs ${this.formatPrice(item.TotalRevenue)}`,
+        'Subtotal': `Rs ${this.formatPrice(item.TotalSubtotal)}`,
+        'VAT': `Rs ${this.formatPrice(item.TotalVAT)}`
+      }))
+      
+      const dateRange = this.getDateRangeString()
+      this.exportToExcel(data, `Sales_by_Payment_${dateRange}.xlsx`, 'Sales by Payment')
+    },
+    exportTopProducts() {
+      if (this.topProducts.length === 0) return
+      
+      const data = this.topProducts.map(product => ({
+        'Product Name': product.ProductName,
+        'Quantity Sold': product.TotalQuantity,
+        'Total Revenue': `Rs ${this.formatPrice(product.TotalRevenue)}`,
+        'Sale Count': product.SaleCount
+      }))
+      
+      const dateRange = this.getDateRangeString()
+      this.exportToExcel(data, `Top_Products_${dateRange}.xlsx`, 'Top Products')
+    },
+    exportDailySales() {
+      if (this.dailySales.length === 0) return
+      
+      const data = this.dailySales.map(day => ({
+        'Date': this.formatDate(day.SaleDate),
+        'Sale Count': day.SaleCount,
+        'Total Revenue': `Rs ${this.formatPrice(day.TotalRevenue)}`,
+        'Subtotal': `Rs ${this.formatPrice(day.TotalSubtotal)}`,
+        'VAT': `Rs ${this.formatPrice(day.TotalVAT)}`,
+        'Discounts': `Rs ${this.formatPrice(day.TotalDiscounts)}`
+      }))
+      
+      const dateRange = this.getDateRangeString()
+      this.exportToExcel(data, `Daily_Sales_${dateRange}.xlsx`, 'Daily Sales')
+    },
+    exportProductSales() {
+      if (this.productSales.length === 0) return
+      
+      const data = this.productSales.map(product => ({
+        'Product Name': product.ProductName,
+        'Barcode': product.Barcode || '-',
+        'Quantity Sold': product.TotalQuantity,
+        'Avg Unit Price': `Rs ${this.formatPrice(product.AvgUnitPrice)}`,
+        'Total Revenue': `Rs ${this.formatPrice(product.TotalRevenue)}`,
+        'Total Discounts': `Rs ${this.formatPrice(product.TotalDiscounts)}`,
+        'Sale Count': product.SaleCount
+      }))
+      
+      const dateRange = this.getDateRangeString()
+      this.exportToExcel(data, `Product_Sales_Detail_${dateRange}.xlsx`, 'Product Sales Detail')
+    },
+    exportVATReport() {
+      if (!this.vatReport) return
+      
+      // Create summary sheet
+      const summaryData = [
+        { Metric: 'Total VAT Items', Value: this.vatReport.summary.TotalVATItems },
+        { Metric: 'Total Expected VAT', Value: `Rs ${this.formatPrice(this.vatReport.summary.TotalExpectedVAT)}` },
+        { Metric: 'Total Actual VAT', Value: `Rs ${this.formatPrice(this.vatReport.summary.TotalActualVAT)}` },
+        { Metric: 'Total Excluded VAT', Value: `Rs ${this.formatPrice(this.vatReport.summary.TotalExcludedVAT)}` },
+        { Metric: 'Items with VAT Excluded', Value: this.vatReport.summary.ItemsWithVATExcluded },
+        { Metric: 'Items with VAT Included', Value: this.vatReport.summary.ItemsWithVATIncluded }
+      ]
+      
+      // Create details sheet
+      const detailsData = this.vatReport.details.map(item => ({
+        'Sale Date': this.formatDate(item.SaleDate),
+        'Sale Number': item.SaleNumber,
+        'Product Name': item.ProductName,
+        'Barcode': item.Barcode || '-',
+        'Quantity': item.Quantity,
+        'Unit Price': `Rs ${this.formatPrice(item.UnitPrice)}`,
+        'Line Total': `Rs ${this.formatPrice(item.LineTotal)}`,
+        'VAT Rate': `${item.VATRate}%`,
+        'Expected VAT': `Rs ${this.formatPrice(item.ExpectedVAT)}`,
+        'Actual VAT': `Rs ${this.formatPrice(item.ActualVAT)}`,
+        'Excluded VAT': item.ExcludedVAT > 0 ? `Rs ${this.formatPrice(item.ExcludedVAT)}` : '-',
+        'Status': item.IsVATExcluded ? 'Excluded' : 'Included'
+      }))
+      
+      try {
+        const wb = XLSX.utils.book_new()
+        const ws1 = XLSX.utils.json_to_sheet(summaryData)
+        const ws2 = XLSX.utils.json_to_sheet(detailsData)
+        XLSX.utils.book_append_sheet(wb, ws1, 'Summary')
+        XLSX.utils.book_append_sheet(wb, ws2, 'Details')
+        
+        const dateRange = this.getDateRangeString()
+        XLSX.writeFile(wb, `VAT_Report_${dateRange}.xlsx`)
+        this.toast.success('Excel file downloaded successfully')
+      } catch (error) {
+        this.toast.error('Failed to export to Excel')
+        console.error(error)
+      }
+    },
+    exportVATSummary() {
+      if (this.vatSummary.length === 0) return
+      
+      const data = this.vatSummary.map(day => ({
+        'Date': this.formatDate(day.SaleDate),
+        'Sale Count': day.SaleCount,
+        'VAT Items': day.VATItemCount,
+        'Expected VAT': `Rs ${this.formatPrice(day.TotalExpectedVAT)}`,
+        'Actual VAT Collected': `Rs ${this.formatPrice(day.TotalVATCollected)}`,
+        'Excluded VAT': day.TotalExcludedVAT > 0 ? `Rs ${this.formatPrice(day.TotalExcludedVAT)}` : '-'
+      }))
+      
+      const dateRange = this.getDateRangeString()
+      this.exportToExcel(data, `VAT_Summary_${dateRange}.xlsx`, 'VAT Summary')
+    },
+    getDateRangeString() {
+      const start = this.filters.startDate ? this.filters.startDate.replace(/-/g, '') : 'all'
+      const end = this.filters.endDate ? this.filters.endDate.replace(/-/g, '') : 'all'
+      return `${start}_to_${end}`
     }
   },
   watch: {
@@ -539,6 +725,12 @@ export default {
 
 .tab-content {
   min-height: 200px;
+}
+
+.export-section {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .loading {
