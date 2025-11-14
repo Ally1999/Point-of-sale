@@ -1,105 +1,94 @@
 # Point of Sale System
 
-A comprehensive Point of Sale (POS) application built with Vue.js, Vite, Node.js, and MS SQL Server, designed to run locally.
+A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, Express, and MS SQL Server. The system covers the full in-store workflow—from catalog maintenance to checkout, VAT handling, and receipt generation.
 
-## Features
+---
 
-- ✅ **Barcode Scanning** - Scan or manually enter barcodes to add products to cart
-- ✅ **Product Management** - Add, edit, and manage products with images
-- ✅ **VAT/Non-VAT Items** - Support for both VAT and non-VAT products with configurable VAT rates
-- ✅ **Multiple Payment Types** - Cash, Credit Card, Debit Card, Mobile Payment, Check
-- ✅ **Receipt Printing** - Generate and print receipts for sales
-- ✅ **Sales History** - View and manage sales records
-- ✅ **Stock Management** - Track product inventory
+## Highlights
+
+- **Fast barcode lookup** – Scan or type barcodes to add items instantly.
+- **Rich product catalog** – Manage descriptions, VAT flags, stock, and images.
+- **Image-in-database storage** – Product photos are stored as Base64 directly in SQL Server, simplifying deployment (no more upload folders).
+- **Dual discount model** – Apply fixed-amount discounts per line item and for the overall cart; percentage discounts are intentionally removed to reduce pricing mistakes.
+- **VAT awareness** – Track VAT-inclusive pricing with per-line VAT exclusion toggles and clear receipt labelling.
+- **Payment flexibility** – Ships with default tenders and supports receipt regeneration and printing.
+- **Inventory tracking** – Sale completion automatically adjusts product stock.
+
+---
+
+## What’s New
+
+- Product images now save as Base64 blobs in SQL Server.
+- Item and cart discounts are amount-only (percentage option removed).
+- Sales lines can mark VAT as excluded; receipts hide the VAT badge accordingly.
+- Backend request limits tuned for Base64 uploads (5 MB JSON payloads).
+
+---
 
 ## Tech Stack
 
-- **Frontend**: Vue.js 3, Vite, Vue Router
-- **Backend**: Node.js, Express.js
-- **Database**: MS SQL Server
-- **Image Upload**: Multer
+- **Frontend:** Vue 3, Vite, Axios, Vue Toastification
+- **Backend:** Node.js 18+, Express, MSSQL (node-mssql)
+- **Database:** Microsoft SQL Server (2017 or later recommended)
+
+> ℹ️ Multer and on-disk image storage were removed; no additional file-storage middleware is required.
+
+---
 
 ## Prerequisites
 
-- Node.js (v16 or higher)
-- MS SQL Server (local instance)
-- npm or yarn
+- Node.js 18 or newer
+- npm 9+ (bundled with Node 18) or Yarn
+- Microsoft SQL Server (Express or higher) with Mixed-Mode authentication enabled
 
-## Setup Instructions
+---
 
-### 1. Database Setup
+## Quick Start
 
-1. Install and start MS SQL Server on your local machine
-2. Create a database named `POS_DB` (or update the database name in `.env`)
-3. Update the database credentials in `backend/.env`:
-   ```
-   DB_SERVER=localhost
-   DB_DATABASE=POS_DB
-   DB_USER=sa
-   DB_PASSWORD=YourPassword123
-   DB_PORT=1433
-   DB_TRUST_CERT=true
+1. **Clone & Install**
+   ```bash
+   git clone https://github.com/your-org/point-of-sale.git
+   cd point-of-sale
+   npm run install:all          # installs root, backend, and frontend deps
    ```
 
-### 2. Install Dependencies
+2. **Configure the Backend**
+   - Copy `backend/.env.example` to `backend/.env` (if needed).
+   - Update the connection settings:
+     ```ini
+     DB_SERVER=localhost
+     DB_DATABASE=POS_DB
+     DB_USER=sa
+     DB_PASSWORD=YourPassword123
+     DB_PORT=1433
+     DB_TRUST_CERT=true
+     ```
 
-From the root directory, run:
-```bash
-npm run install:all
-```
+3. **Start the Servers**
+   ```bash
+   # backend (http://localhost:3000)
+   cd backend
+   npm run dev
 
-Or install manually:
-```bash
-# Install root dependencies
-npm install
+   # frontend (http://localhost:5173)
+   cd ../frontend
+   npm run dev
+   ```
 
-# Install backend dependencies
-cd backend
-npm install
+4. **Visit the App**
+   Open `http://localhost:5173` in your browser.
 
-# Install frontend dependencies
-cd ../frontend
-npm install
-```
+The first backend launch will create tables and seed defaults (payment types, sample category). Existing databases receive column backfills automatically (discount columns, Base64 image field, VAT exclusion flag).
 
-### 3. Initialize Database
+---
 
-The database schema will be automatically initialized when you start the backend server. Alternatively, you can manually run the SQL script:
+## Database Notes
 
-```bash
-# Connect to MS SQL Server and run:
-sqlcmd -S localhost -d POS_DB -i backend/database/schema.sql
-```
+- **Automatic migrations:** `backend/database/init.js` creates missing tables/columns on boot.
+- **Schema snapshot:** `backend/database/schema.sql` provides the full structure for manual deployment.
+- **Base64 images:** The `Products` table uses an `ImageBase64` column (`NVARCHAR(MAX)`); no file share is required.
 
-### 4. Run the Application
-
-#### Option 1: Run both frontend and backend together
-```bash
-npm run dev
-```
-
-#### Option 2: Run separately
-
-**Backend (Terminal 1):**
-```bash
-cd backend
-npm run dev
-```
-Backend will run on `http://localhost:3000`
-
-**Frontend (Terminal 2):**
-```bash
-cd frontend
-npm run dev
-```
-Frontend will run on `http://localhost:5173`
-
-### 5. Access the Application
-
-Open your browser and navigate to:
-```
-http://localhost:5173
-```
+---
 
 ## Project Structure
 
@@ -107,101 +96,114 @@ http://localhost:5173
 Point-of-sale/
 ├── backend/
 │   ├── config/
-│   │   └── database.js          # Database configuration
+│   │   └── database.js        # Connection pool
 │   ├── database/
-│   │   ├── schema.sql            # Database schema
-│   │   └── init.js               # Database initialization
+│   │   ├── schema.sql         # Canonical schema
+│   │   └── init.js            # On-boot migration helper
 │   ├── routes/
-│   │   ├── products.js           # Product API routes
-│   │   ├── categories.js         # Category API routes
-│   │   ├── sales.js              # Sales API routes
-│   │   └── payments.js           # Payment types API routes
-│   ├── uploads/
-│   │   └── products/             # Product images storage
-│   ├── server.js                 # Express server
+│   │   ├── products.js        # Product CRUD + Base64 handling
+│   │   ├── categories.js
+│   │   ├── sales.js           # Checkout, VAT logic, receipts
+│   │   └── payments.js
+│   ├── server.js              # Express bootstrap
 │   └── package.json
 ├── frontend/
 │   ├── src/
-│   │   ├── api/
-│   │   │   └── api.js            # API client
+│   │   ├── api/api.js         # Axios client
 │   │   ├── views/
-│   │   │   ├── POS.vue          # Point of Sale interface
-│   │   │   ├── Products.vue     # Product management
-│   │   │   └── Sales.vue        # Sales history
-│   │   ├── App.vue              # Main app component
-│   │   ├── main.js              # App entry point
-│   │   └── style.css            # Global styles
-│   ├── index.html
+│   │   │   ├── POS.vue        # Register, discount controls
+│   │   │   ├── Products.vue   # Catalog maintenance
+│   │   │   └── Sales.vue      # History & receipt modal
+│   │   ├── App.vue
+│   │   ├── main.js
+│   │   └── style.css
 │   ├── vite.config.js
 │   └── package.json
-└── package.json                  # Root package.json
+├── package.json               # Root utilities (install:all, dev)
+└── README.md
 ```
 
-## API Endpoints
+---
+
+## Core Workflows
 
 ### Products
-- `GET /api/products` - Get all products
-- `GET /api/products/:id` - Get product by ID
-- `GET /api/products/barcode/:barcode` - Get product by barcode
-- `POST /api/products` - Create product
-- `PUT /api/products/:id` - Update product
-- `DELETE /api/products/:id` - Delete product
+1. Navigate to **Products**.
+2. Add or edit items, including optional image uploads (handled as Base64).
+3. Set VAT status, rates, SKU/barcode, and inventory levels.
 
-### Categories
-- `GET /api/categories` - Get all categories
-- `POST /api/categories` - Create category
+### Point of Sale
+1. Open **POS**.
+2. Scan or search; click items to add to the cart.
+3. Apply per-line amount discounts or mark VAT as excluded when needed.
+4. Enter a cart-wide discount (amount).
+5. Choose a payment type and process the sale; inventory updates automatically.
 
-### Sales
-- `GET /api/sales` - Get all sales
-- `GET /api/sales/:id` - Get sale by ID with items
-- `POST /api/sales` - Create new sale
+### Sales History & Receipts
+1. Check **Sales** for past transactions.
+2. View receipts with item-level discount/VAT detail and print directly from the browser.
 
-### Payments
-- `GET /api/payments` - Get all payment types
+---
 
-## Usage
+## API Overview
 
-### Adding Products
-1. Navigate to the "Products" page
-2. Click "Add Product"
-3. Fill in product details including:
-   - Product name (required)
-   - Barcode (optional, for scanning)
-   - Price (required)
-   - VAT status (VAT or Non-VAT)
-   - VAT rate (if VAT item)
-   - Product image (optional)
-4. Click "Save"
+- `GET /api/products` – List active products
+- `POST /api/products` – Create product (accepts Base64 images)
+- `PUT /api/products/:id` – Update product
+- `DELETE /api/products/:id` – Soft-delete product
+- `GET /api/products/barcode/:code` – Lookup by barcode
+- `GET /api/categories` – List categories
+- `GET /api/sales` – Paginated sales history
+- `POST /api/sales` – Create sale (supports item + cart discounts, VAT exclusion)
+- `GET /api/sales/:id` – Sale detail with line items
+- `POST /api/sales/:id/print-thermal-receipt` – Generate formatted receipt payload
+- `GET /api/payments` – Available payment types
 
-### Processing a Sale
-1. Navigate to the "POS" page
-2. Scan or search for products to add to cart
-3. Adjust quantities as needed
-4. Select payment type
-5. Enter amount paid
-6. Click "Process Sale"
-7. View and print receipt
+---
 
-### Viewing Sales History
-1. Navigate to the "Sales" page
-2. View all past sales
-3. Click "View Receipt" to see details and print
+## Troubleshooting
 
-## Notes
+| Issue | Quick Fix |
+| --- | --- |
+| SQL login fails | Ensure SQL Server service is running, Mixed Mode auth enabled, credentials match `.env`. |
+| Backend rejects image upload | Base64 payloads are capped at 5 MB—compress/resize the image and retry. |
+| Ports already in use | Change `PORT` in `backend/.env` and/or adjust Vite port in `frontend/vite.config.js`. |
+| Barcode scan not detected | Focus the scan input (POS page) and ensure the scanner sends an Enter key. |
 
-- Product images are stored in `backend/uploads/products/`
-- The application uses Mauritian rooes (Rs) as the currency symbol
-- Default VAT rate is 15% (common in Mauritius)
-- Barcode scanning works by entering the barcode in the search field and pressing Enter
-- Receipts can be printed using the browser's print function
+---
 
+## Default Data
 
-### Image Upload Issues
-- Ensure `backend/uploads/products/` directory exists
-- Check file permissions
-- Verify file size is under 5MB
+- Categories: `General`
+- Payment Types: `Cash`, `Juice`
+- Currency: `Rs`
+- Default VAT rate (suggested): 15 %
 
-### Port Conflicts
-- Backend default port: 3000
-- Frontend default port: 5173
-- Update ports in configuration files if needed
+Adjust defaults by editing `backend/database/init.js` before the first run, or update via the UI once the app is running.
+
+---
+
+## Development Scripts
+
+| Location | Command | Description |
+| --- | --- | --- |
+| root | `npm run install:all` | Install dependencies for root + services |
+| root | `npm run dev` | Run backend + frontend concurrently (if configured) |
+| backend | `npm run dev` | Start Express with file watcher |
+| backend | `npm start` | Start Express (production) |
+| frontend | `npm run dev` | Launch Vite dev server |
+| frontend | `npm run build` | Production build (dist/) |
+
+---
+
+## Contributing
+
+1. Fork → feature branch → PR.
+2. Keep lint errors at zero (run `npm run lint` where available).
+3. Document user-facing changes (e.g., update this README when adding features).
+
+---
+
+## License
+
+This project is distributed for internal use. Please review your organization’s licensing requirements before redistribution.
