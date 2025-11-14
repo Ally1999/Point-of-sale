@@ -490,43 +490,15 @@ export default {
         console.error(error)
       }
     },
-    async printThermalReceipt() {
+    printThermalReceipt() {
       if (!this.receiptData?.SaleID) {
         this.toast.error('Receipt data not available')
         return
       }
 
-      try {
-        const { data } = await salesAPI.printThermalReceipt(this.receiptData.SaleID, {
-          width: 300,
-          selectedPrintType: 'thermal'
-        })
-
-        const payload = data?.payload
-        if (!data?.success || !payload?.htmlContent) {
-          throw new Error('Invalid receipt payload')
-        }
-
-        const printWindow = window.open('', '_blank')
-        if (!printWindow) {
-          this.toast.error('Please allow pop-ups to print the receipt')
-          return
-        }
-
-        printWindow.document.write(payload.htmlContent)
-        printWindow.document.close()
-        printWindow.focus()
-
-        setTimeout(() => {
-          printWindow.print()
-          setTimeout(() => {
-            printWindow.close()
-          }, 500)
-        }, 300)
-      } catch (error) {
-        this.toast.error('Failed to generate printable receipt')
-        console.error(error)
-      }
+      // Print the existing receipt preview directly
+      // The CSS print media queries will handle formatting
+      window.print()
     },
     closeReceipt() {
       this.showReceipt = false
