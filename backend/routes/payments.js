@@ -7,12 +7,12 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT * FROM PaymentTypes 
-      WHERE IsActive = 1 
+      WHERE IsActive = true 
       ORDER BY PaymentName
     `);
-    res.json(result.recordset);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching payment types:', error);
     res.status(500).json({ error: 'Failed to fetch payment types' });

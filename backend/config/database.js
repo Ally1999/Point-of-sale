@@ -1,19 +1,18 @@
-import sql from 'mssql';
+import pkg from 'pg';
 import dotenv from 'dotenv';
 
+const { Pool } = pkg;
 dotenv.config();
 
 const config = {
-  server: 'localhost',
-  database: 'POS_DB',
-  user: 'sa',
-  password: '123',
-  port: parseInt('1433'),
-  options: {
-    encrypt: true,
-    trustServerCertificate: true,
-    enableArithAbort: true
-  }
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_DATABASE || 'POS_DB',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  port: parseInt(process.env.DB_PORT || '5432'),
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 };
 
 let pool = null;
@@ -23,8 +22,11 @@ export const getConnection = async () => {
     if (pool) {
       return pool;
     }
-    pool = await sql.connect(config);
-    console.log('Connected to MS SQL Server');
+    pool = new Pool(config);
+    // Test the connection
+    const client = await pool.connect();
+    client.release();
+    console.log('Connected to PostgreSQL');
     return pool;
   } catch (error) {
     console.error('Database connection error:', error);
@@ -35,7 +37,7 @@ export const getConnection = async () => {
 export const closeConnection = async () => {
   try {
     if (pool) {
-      await pool.close();
+      await pool.end();
       pool = null;
       console.log('Database connection closed');
     }
@@ -44,5 +46,5 @@ export const closeConnection = async () => {
   }
 };
 
-export default sql;
+export default pool;
 

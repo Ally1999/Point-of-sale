@@ -1,6 +1,5 @@
 import express from 'express';
 import { getConnection } from '../config/database.js';
-import sql from '../config/database.js';
 
 const router = express.Router();
 
@@ -8,14 +7,14 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT p.*, c.CategoryName 
       FROM Products p
       LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
-      WHERE p.IsActive = 1
+      WHERE p.IsActive = true
       ORDER BY p.ProductName
     `);
-    res.json(result.recordset);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: 'Failed to fetch products' });
@@ -26,20 +25,18 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .query(`
-        SELECT p.*, c.CategoryName 
-        FROM Products p
-        LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
-        WHERE p.ProductID = @id
-      `);
+    const result = await pool.query(`
+      SELECT p.*, c.CategoryName 
+      FROM Products p
+      LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
+      WHERE p.ProductID = $1
+    `, [req.params.id]);
     
-    if (result.recordset.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    res.json(result.recordset[0]);
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching product:', error);
     res.status(500).json({ error: 'Failed to fetch product' });
@@ -50,20 +47,18 @@ router.get('/:id', async (req, res) => {
 router.get('/barcode/:barcode', async (req, res) => {
   try {
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('barcode', sql.NVarChar, req.params.barcode)
-      .query(`
-        SELECT p.*, c.CategoryName 
-        FROM Products p
-        LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
-        WHERE p.Barcode = @barcode AND p.IsActive = 1
-      `);
+    const result = await pool.query(`
+      SELECT p.*, c.CategoryName 
+      FROM Products p
+      LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
+      WHERE p.Barcode = $1 AND p.IsActive = true
+    `, [req.params.barcode]);
     
-    if (result.recordset.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    res.json(result.recordset[0]);
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching product by barcode:', error);
     res.status(500).json({ error: 'Failed to fetch product' });
@@ -77,25 +72,25 @@ router.post('/', async (req, res) => {
     const imageBase64 = ImageBase64 && ImageBase64.trim() !== '' ? ImageBase64.trim() : null;
     
     const pool = await getConnection();
-    const result = await pool.request()
-      .input('ProductName', sql.NVarChar, ProductName)
-      .input('Barcode', sql.NVarChar, Barcode || null)
-      .input('SKU', sql.NVarChar, SKU || null)
-      .input('Description', sql.NVarChar, Description || null)
-      .input('Price', sql.Decimal(18, 2), parseFloat(Price))
-      .input('Cost', sql.Decimal(18, 2), Cost ? parseFloat(Cost) : null)
-      .input('IsVAT', sql.Bit, IsVAT === 'true' || IsVAT === true ? 1 : 0)
-      .input('VATRate', sql.Decimal(5, 2), VATRate ? parseFloat(VATRate) : 0.00)
-      .input('CategoryID', sql.Int, CategoryID || null)
-      .input('ImageBase64', sql.NVarChar(sql.MAX), imageBase64)
-      .input('StockQuantity', sql.Int, StockQuantity ? parseInt(StockQuantity) : 0)
-      .query(`
-        INSERT INTO Products (ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, ImageBase64, StockQuantity)
-        OUTPUT INSERTED.*
-        VALUES (@ProductName, @Barcode, @SKU, @Description, @Price, @Cost, @IsVAT, @VATRate, @CategoryID, @ImageBase64, @StockQuantity)
-      `);
+    const result = await pool.query(`
+      INSERT INTO Products (ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, ImageBase64, StockQuantity)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+    `, [
+      ProductName,
+      Barcode || null,
+      SKU || null,
+      Description || null,
+      parseFloat(Price),
+      Cost ? parseFloat(Cost) : null,
+      IsVAT === 'true' || IsVAT === true,
+      VATRate ? parseFloat(VATRate) : 0.00,
+      CategoryID || null,
+      imageBase64,
+      StockQuantity ? parseInt(StockQuantity) : 0
+    ]);
     
-    res.status(201).json(result.recordset[0]);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error creating product:', error);
     res.status(500).json({ error: 'Failed to create product', details: error.message });
@@ -109,11 +104,9 @@ router.put('/:id', async (req, res) => {
     
     // Get existing product to check for existing image
     const pool = await getConnection();
-    const existing = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .query('SELECT ImageBase64 FROM Products WHERE ProductID = @id');
+    const existing = await pool.query('SELECT ImageBase64 FROM Products WHERE ProductID = $1', [req.params.id]);
     
-    let imageBase64 = existing.recordset[0]?.ImageBase64 || null;
+    let imageBase64 = existing.rows[0]?.imagebase64 || null;
     
     // If new image provided, use it; otherwise keep existing
     if (typeof ImageBase64 === 'string' && ImageBase64.trim() !== '') {
@@ -122,42 +115,42 @@ router.put('/:id', async (req, res) => {
       imageBase64 = null;
     }
     
-    const result = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .input('ProductName', sql.NVarChar, ProductName)
-      .input('Barcode', sql.NVarChar, Barcode || null)
-      .input('SKU', sql.NVarChar, SKU || null)
-      .input('Description', sql.NVarChar, Description || null)
-      .input('Price', sql.Decimal(18, 2), parseFloat(Price))
-      .input('Cost', sql.Decimal(18, 2), Cost ? parseFloat(Cost) : null)
-      .input('IsVAT', sql.Bit, IsVAT === 'true' || IsVAT === true ? 1 : 0)
-      .input('VATRate', sql.Decimal(5, 2), VATRate ? parseFloat(VATRate) : 0.00)
-      .input('CategoryID', sql.Int, CategoryID || null)
-      .input('ImageBase64', sql.NVarChar(sql.MAX), imageBase64)
-      .input('StockQuantity', sql.Int, StockQuantity ? parseInt(StockQuantity) : 0)
-      .query(`
-        UPDATE Products 
-        SET ProductName = @ProductName,
-            Barcode = @Barcode,
-            SKU = @SKU,
-            Description = @Description,
-            Price = @Price,
-            Cost = @Cost,
-            IsVAT = @IsVAT,
-            VATRate = @VATRate,
-            CategoryID = @CategoryID,
-            ImageBase64 = @ImageBase64,
-            StockQuantity = @StockQuantity,
-            UpdatedAt = GETDATE()
-        WHERE ProductID = @id
-        SELECT * FROM Products WHERE ProductID = @id
-      `);
+    const result = await pool.query(`
+      UPDATE Products 
+      SET ProductName = $1,
+          Barcode = $2,
+          SKU = $3,
+          Description = $4,
+          Price = $5,
+          Cost = $6,
+          IsVAT = $7,
+          VATRate = $8,
+          CategoryID = $9,
+          ImageBase64 = $10,
+          StockQuantity = $11,
+          UpdatedAt = CURRENT_TIMESTAMP
+      WHERE ProductID = $12
+      RETURNING *
+    `, [
+      ProductName,
+      Barcode || null,
+      SKU || null,
+      Description || null,
+      parseFloat(Price),
+      Cost ? parseFloat(Cost) : null,
+      IsVAT === 'true' || IsVAT === true,
+      VATRate ? parseFloat(VATRate) : 0.00,
+      CategoryID || null,
+      imageBase64,
+      StockQuantity ? parseInt(StockQuantity) : 0,
+      req.params.id
+    ]);
     
-    if (result.recordset.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
     
-    res.json(result.recordset[0]);
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating product:', error);
     res.status(500).json({ error: 'Failed to update product', details: error.message });
@@ -168,9 +161,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const pool = await getConnection();
-    await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .query('UPDATE Products SET IsActive = 0 WHERE ProductID = @id');
+    await pool.query('UPDATE Products SET IsActive = false WHERE ProductID = $1', [req.params.id]);
     
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {

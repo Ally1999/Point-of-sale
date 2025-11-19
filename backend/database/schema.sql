@@ -1,92 +1,90 @@
 -- Create Database (run this manually if database doesn't exist)
 -- CREATE DATABASE POS_DB;
 
-USE POS_DB;
-GO
-
 -- Categories Table
-CREATE TABLE Categories (
-    CategoryID INT PRIMARY KEY IDENTITY(1,1),
-    CategoryName NVARCHAR(100) NOT NULL,
-    Description NVARCHAR(255),
-    CreatedAt DATETIME DEFAULT GETDATE()
+CREATE TABLE IF NOT EXISTS Categories (
+    CategoryID SERIAL PRIMARY KEY,
+    CategoryName VARCHAR(100) NOT NULL,
+    Description VARCHAR(255),
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-GO
 
 -- Products Table
-CREATE TABLE Products (
-    ProductID INT PRIMARY KEY IDENTITY(1,1),
-    ProductName NVARCHAR(200) NOT NULL,
-    Barcode NVARCHAR(100) UNIQUE,
-    SKU NVARCHAR(50),
-    Description NVARCHAR(500),
+CREATE TABLE IF NOT EXISTS Products (
+    ProductID SERIAL PRIMARY KEY,
+    ProductName VARCHAR(200) NOT NULL,
+    Barcode VARCHAR(100) UNIQUE,
+    SKU VARCHAR(50),
+    Description VARCHAR(500),
     Price DECIMAL(18,2) NOT NULL,
     Cost DECIMAL(18,2),
-    IsVAT BIT DEFAULT 1, -- 1 for VAT, 0 for non-VAT
+    IsVAT BOOLEAN DEFAULT true, -- true for VAT, false for non-VAT
     VATRate DECIMAL(5,2) DEFAULT 0.00,
     CategoryID INT,
-    ImageBase64 NVARCHAR(MAX),
+    ImageBase64 TEXT,
     StockQuantity INT DEFAULT 0,
-    IsActive BIT DEFAULT 1,
-    CreatedAt DATETIME DEFAULT GETDATE(),
-    UpdatedAt DATETIME DEFAULT GETDATE(),
+    IsActive BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (CategoryID) REFERENCES Categories(CategoryID)
 );
-GO
 
 -- Payment Types Table
-CREATE TABLE PaymentTypes (
-    PaymentTypeID INT PRIMARY KEY IDENTITY(1,1),
-    PaymentName NVARCHAR(50) NOT NULL,
-    Description NVARCHAR(255),
-    IsActive BIT DEFAULT 1
+CREATE TABLE IF NOT EXISTS PaymentTypes (
+    PaymentTypeID SERIAL PRIMARY KEY,
+    PaymentName VARCHAR(50) NOT NULL,
+    Description VARCHAR(255),
+    IsActive BOOLEAN DEFAULT true
 );
-GO
 
 -- Sales Table
-CREATE TABLE Sales (
-    SaleID INT PRIMARY KEY IDENTITY(1,1),
-    SaleNumber NVARCHAR(50) UNIQUE NOT NULL,
-    SaleDate DATETIME DEFAULT GETDATE(),
+CREATE TABLE IF NOT EXISTS Sales (
+    SaleID SERIAL PRIMARY KEY,
+    SaleNumber VARCHAR(50) UNIQUE NOT NULL,
+    SaleDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     SubTotal DECIMAL(18,2) NOT NULL,
+    DiscountType VARCHAR(20) DEFAULT NULL,
+    DiscountValue DECIMAL(18,2) DEFAULT 0.00,
+    DiscountAmount DECIMAL(18,2) DEFAULT 0.00,
     VATAmount DECIMAL(18,2) DEFAULT 0.00,
     TotalAmount DECIMAL(18,2) NOT NULL,
     PaymentTypeID INT,
     AmountPaid DECIMAL(18,2) NOT NULL,
     ChangeAmount DECIMAL(18,2) DEFAULT 0.00,
-    Notes NVARCHAR(500),
-    CreatedAt DATETIME DEFAULT GETDATE(),
+    Notes VARCHAR(500),
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (PaymentTypeID) REFERENCES PaymentTypes(PaymentTypeID)
 );
-GO
 
 -- Sale Items Table
-CREATE TABLE SaleItems (
-    SaleItemID INT PRIMARY KEY IDENTITY(1,1),
+CREATE TABLE IF NOT EXISTS SaleItems (
+    SaleItemID SERIAL PRIMARY KEY,
     SaleID INT NOT NULL,
     ProductID INT NOT NULL,
-    ProductName NVARCHAR(200) NOT NULL,
-    Barcode NVARCHAR(100),
+    ProductName VARCHAR(200) NOT NULL,
+    Barcode VARCHAR(100),
     Quantity INT NOT NULL,
     UnitPrice DECIMAL(18,2) NOT NULL,
-    IsVAT BIT DEFAULT 1,
+    DiscountType VARCHAR(20) DEFAULT NULL,
+    DiscountValue DECIMAL(18,2) DEFAULT 0.00,
+    DiscountAmount DECIMAL(18,2) DEFAULT 0.00,
+    IsVAT BOOLEAN DEFAULT true,
     VATRate DECIMAL(5,2) DEFAULT 0.00,
-    ExcludeVAT BIT DEFAULT 0,
+    ExcludeVAT BOOLEAN DEFAULT false,
     LineTotal DECIMAL(18,2) NOT NULL,
     FOREIGN KEY (SaleID) REFERENCES Sales(SaleID) ON DELETE CASCADE,
     FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
 );
-GO
 
 -- Insert Default Payment Types
 INSERT INTO PaymentTypes (PaymentName, Description) VALUES
 ('Cash', 'Cash payment'),
-('Juice', 'Juice payment');
-GO
+('Juice', 'Juice payment')
+ON CONFLICT DO NOTHING;
 
 -- Insert Sample Category
 INSERT INTO Categories (CategoryName, Description) VALUES
 ('General', 'General products'),
-('Wedding', 'Wedding products');
-GO
+('Wedding', 'Wedding products')
+ON CONFLICT DO NOTHING;
 

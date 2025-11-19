@@ -1,6 +1,5 @@
 import express from 'express';
 import { getConnection } from '../config/database.js';
-import sql from '../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -9,13 +8,13 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const pool = await getConnection();
-    const result = await pool.request().query(`
+    const result = await pool.query(`
       SELECT s.*, pt.PaymentName 
       FROM Sales s
       LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
       ORDER BY s.SaleDate DESC
     `);
-    res.json(result.recordset);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching sales:', error);
     res.status(500).json({ error: 'Failed to fetch sales' });
@@ -28,27 +27,23 @@ router.get('/:id', async (req, res) => {
     const pool = await getConnection();
     
     // Get sale details
-    const saleResult = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .query(`
-        SELECT s.*, pt.PaymentName 
-        FROM Sales s
-        LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
-        WHERE s.SaleID = @id
-      `);
+    const saleResult = await pool.query(`
+      SELECT s.*, pt.PaymentName 
+      FROM Sales s
+      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
+      WHERE s.SaleID = $1
+    `, [req.params.id]);
     
-    if (saleResult.recordset.length === 0) {
+    if (saleResult.rows.length === 0) {
       return res.status(404).json({ error: 'Sale not found' });
     }
     
     // Get sale items
-    const itemsResult = await pool.request()
-      .input('id', sql.Int, req.params.id)
-      .query('SELECT * FROM SaleItems WHERE SaleID = @id');
+    const itemsResult = await pool.query('SELECT * FROM SaleItems WHERE SaleID = $1', [req.params.id]);
     
     res.json({
-      ...saleResult.recordset[0],
-      items: itemsResult.recordset
+      ...saleResult.rows[0],
+      items: itemsResult.rows
     });
   } catch (error) {
     console.error('Error fetching sale:', error);
@@ -72,33 +67,29 @@ router.post('/:id/print-thermal-receipt', async (req, res) => {
 
     const pool = await getConnection();
 
-    const saleResult = await pool.request()
-      .input('id', sql.Int, saleId)
-      .query(`
-        SELECT s.*, pt.PaymentName 
-        FROM Sales s
-        LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
-        WHERE s.SaleID = @id
-      `);
+    const saleResult = await pool.query(`
+      SELECT s.*, pt.PaymentName 
+      FROM Sales s
+      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
+      WHERE s.SaleID = $1
+    `, [saleId]);
 
-    if (saleResult.recordset.length === 0) {
+    if (saleResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Sale not found.'
       });
     }
 
-    const itemsResult = await pool.request()
-      .input('id', sql.Int, saleId)
-      .query(`
-        SELECT * 
-        FROM SaleItems 
-        WHERE SaleID = @id
-        ORDER BY SaleItemID ASC
-      `);
+    const itemsResult = await pool.query(`
+      SELECT * 
+      FROM SaleItems 
+      WHERE SaleID = $1
+      ORDER BY SaleItemID ASC
+    `, [saleId]);
 
-    const sale = saleResult.recordset[0];
-    const items = itemsResult.recordset ?? [];
+    const sale = saleResult.rows[0];
+    const items = itemsResult.rows ?? [];
 
     const { htmlContent, estimatedHeight } = generateThermalReceipt({
       sale,
@@ -134,13 +125,13 @@ router.post('/:id/print-thermal-receipt', async (req, res) => {
 
 // Create new sale
 router.post('/', async (req, res) => {
-  const transaction = new sql.Transaction();
+  const pool = await getConnection();
+  const client = await pool.connect();
   
   try {
     const { items, paymentTypeID, amountPaid, notes, saleDiscount } = req.body;
-    const pool = await getConnection();
     
-    await transaction.begin();
+    await client.query('BEGIN');
     
     // Calculate totals with item-level discounts
     // First pass: calculate VAT-inclusive totals after item discounts
@@ -222,30 +213,28 @@ router.post('/', async (req, res) => {
     const saleNumber = 'SALE-' + Date.now() + '-' + uuidv4().substring(0, 8).toUpperCase();
     
     // Create sale
-    const saleRequest = new sql.Request(transaction);
-    saleRequest.input('SaleNumber', sql.NVarChar, saleNumber);
-    saleRequest.input('SubTotal', sql.Decimal(18, 2), subTotal); // Subtotal (VAT-exclusive) after all discounts
-    saleRequest.input('DiscountType', sql.NVarChar, saleDiscountType);
-    saleRequest.input('DiscountValue', sql.Decimal(18, 2), saleDiscountValue);
-    saleRequest.input('DiscountAmount', sql.Decimal(18, 2), saleDiscountAmount);
-    saleRequest.input('VATAmount', sql.Decimal(18, 2), vatAmount);
-    saleRequest.input('TotalAmount', sql.Decimal(18, 2), totalAmount);
-    saleRequest.input('PaymentTypeID', sql.Int, paymentTypeID);
-    saleRequest.input('AmountPaid', sql.Decimal(18, 2), finalAmountPaid);
-    saleRequest.input('ChangeAmount', sql.Decimal(18, 2), changeAmount);
-    saleRequest.input('Notes', sql.NVarChar, notes || null);
-    
-    const saleResult = await saleRequest.query(`
+    const saleResult = await client.query(`
       INSERT INTO Sales (SaleNumber, SubTotal, DiscountType, DiscountValue, DiscountAmount, VATAmount, TotalAmount, PaymentTypeID, AmountPaid, ChangeAmount, Notes)
-      OUTPUT INSERTED.*
-      VALUES (@SaleNumber, @SubTotal, @DiscountType, @DiscountValue, @DiscountAmount, @VATAmount, @TotalAmount, @PaymentTypeID, @AmountPaid, @ChangeAmount, @Notes)
-    `);
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+    `, [
+      saleNumber,
+      subTotal,
+      saleDiscountType,
+      saleDiscountValue,
+      saleDiscountAmount,
+      vatAmount,
+      totalAmount,
+      paymentTypeID,
+      finalAmountPaid,
+      changeAmount,
+      notes || null
+    ]);
     
-    const saleID = saleResult.recordset[0].SaleID;
+    const saleID = saleResult.rows[0].saleid;
     
     // Create sale items
     for (const item of items) {
-      const itemRequest = new sql.Request(transaction);
       let lineTotal = item.quantity * item.unitPrice;
       let itemDiscountAmount = 0;
       let itemDiscountType = null;
@@ -263,61 +252,55 @@ router.post('/', async (req, res) => {
         lineTotal -= itemDiscountAmount;
       }
       
-      itemRequest.input('SaleID', sql.Int, saleID);
-      itemRequest.input('ProductID', sql.Int, item.productID);
-      itemRequest.input('ProductName', sql.NVarChar, item.productName);
-      itemRequest.input('Barcode', sql.NVarChar, item.barcode || null);
-      itemRequest.input('Quantity', sql.Int, item.quantity);
-      itemRequest.input('UnitPrice', sql.Decimal(18, 2), item.unitPrice);
-      itemRequest.input('DiscountType', sql.NVarChar, itemDiscountType);
-      itemRequest.input('DiscountValue', sql.Decimal(18, 2), itemDiscountValue);
-      itemRequest.input('DiscountAmount', sql.Decimal(18, 2), itemDiscountAmount);
-      itemRequest.input('IsVAT', sql.Bit, item.isVAT ? 1 : 0);
-      itemRequest.input('VATRate', sql.Decimal(5, 2), item.vatRate || 0);
-      itemRequest.input('ExcludeVAT', sql.Bit, item.excludeVAT ? 1 : 0);
-      itemRequest.input('LineTotal', sql.Decimal(18, 2), lineTotal);
-      
-      await itemRequest.query(`
+      await client.query(`
         INSERT INTO SaleItems (SaleID, ProductID, ProductName, Barcode, Quantity, UnitPrice, DiscountType, DiscountValue, DiscountAmount, IsVAT, VATRate, ExcludeVAT, LineTotal)
-        VALUES (@SaleID, @ProductID, @ProductName, @Barcode, @Quantity, @UnitPrice, @DiscountType, @DiscountValue, @DiscountAmount, @IsVAT, @VATRate, @ExcludeVAT, @LineTotal)
-      `);
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `, [
+        saleID,
+        item.productID,
+        item.productName,
+        item.barcode || null,
+        item.quantity,
+        item.unitPrice,
+        itemDiscountType,
+        itemDiscountValue,
+        itemDiscountAmount,
+        item.isVAT ? true : false,
+        item.vatRate || 0,
+        item.excludeVAT ? true : false,
+        lineTotal
+      ]);
       
       // Update stock quantity
-      const stockRequest = new sql.Request(transaction);
-      stockRequest.input('ProductID', sql.Int, item.productID);
-      stockRequest.input('Quantity', sql.Int, item.quantity);
-      
-      await stockRequest.query(`
+      await client.query(`
         UPDATE Products 
-        SET StockQuantity = StockQuantity - @Quantity
-        WHERE ProductID = @ProductID
-      `);
+        SET StockQuantity = StockQuantity - $1
+        WHERE ProductID = $2
+      `, [item.quantity, item.productID]);
     }
     
-    await transaction.commit();
+    await client.query('COMMIT');
     
     // Fetch complete sale with items
-    const completeSale = await pool.request()
-      .input('id', sql.Int, saleID)
-      .query(`
-        SELECT s.*, pt.PaymentName 
-        FROM Sales s
-        LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
-        WHERE s.SaleID = @id
-      `);
+    const completeSale = await pool.query(`
+      SELECT s.*, pt.PaymentName 
+      FROM Sales s
+      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
+      WHERE s.SaleID = $1
+    `, [saleID]);
     
-    const saleItems = await pool.request()
-      .input('id', sql.Int, saleID)
-      .query('SELECT * FROM SaleItems WHERE SaleID = @id');
+    const saleItems = await pool.query('SELECT * FROM SaleItems WHERE SaleID = $1', [saleID]);
     
     res.status(201).json({
-      ...completeSale.recordset[0],
-      items: saleItems.recordset
+      ...completeSale.rows[0],
+      items: saleItems.rows
     });
   } catch (error) {
-    await transaction.rollback();
+    await client.query('ROLLBACK');
     console.error('Error creating sale:', error);
     res.status(500).json({ error: 'Failed to create sale', details: error.message });
+  } finally {
+    client.release();
   }
 });
 
