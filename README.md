@@ -47,7 +47,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 
 1. **Clone & Install**
    ```bash
-   git clone https://github.com/your-org/point-of-sale.git
+   git clone https://github.com/Ally1999/Point-of-sale.git
    cd point-of-sale
    npm run install:all          # installs root, backend, and frontend deps
    ```
