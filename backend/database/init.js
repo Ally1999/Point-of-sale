@@ -65,8 +65,6 @@ export const initializeDatabase = async () => {
           "SaleNumber" VARCHAR(50) UNIQUE NOT NULL,
           "SaleDate" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           "SubTotal" DECIMAL(18,2) NOT NULL,
-          "DiscountType" VARCHAR(20) DEFAULT NULL,
-          "DiscountValue" DECIMAL(18,2) DEFAULT 0.00,
           "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00,
           "VATAmount" DECIMAL(18,2) DEFAULT 0.00,
           "TotalAmount" DECIMAL(18,2) NOT NULL,
@@ -84,24 +82,6 @@ export const initializeDatabase = async () => {
     
     // Add discount columns to Sales table if they don't exist
     try {
-      const salesColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'Sales' AND column_name = 'DiscountType'
-      `);
-      if (salesColumns.rows.length === 0) {
-        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountType" VARCHAR(20) DEFAULT NULL');
-      }
-      
-      const discountValueCheck = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'Sales' AND column_name = 'DiscountValue'
-      `);
-      if (discountValueCheck.rows.length === 0) {
-        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountValue" DECIMAL(18,2) DEFAULT 0.00');
-      }
-      
       const discountAmountCheck = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
@@ -125,8 +105,6 @@ export const initializeDatabase = async () => {
           "Barcode" VARCHAR(100),
           "Quantity" INT NOT NULL,
           "UnitPrice" DECIMAL(18,2) NOT NULL,
-          "DiscountType" VARCHAR(20) DEFAULT NULL,
-          "DiscountValue" DECIMAL(18,2) DEFAULT 0.00,
           "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00,
           "IsVAT" BOOLEAN DEFAULT true,
           "VATRate" DECIMAL(5,2) DEFAULT 0.00,
@@ -142,24 +120,6 @@ export const initializeDatabase = async () => {
     
     // Add discount columns to SaleItems table if they don't exist
     try {
-      const saleItemsColumns = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'SaleItems' AND column_name = 'DiscountType'
-      `);
-      if (saleItemsColumns.rows.length === 0) {
-        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountType" VARCHAR(20) DEFAULT NULL');
-      }
-      
-      const saleItemsDiscountValue = await pool.query(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'SaleItems' AND column_name = 'DiscountValue'
-      `);
-      if (saleItemsDiscountValue.rows.length === 0) {
-        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountValue" DECIMAL(18,2) DEFAULT 0.00');
-      }
-      
       const saleItemsDiscountAmount = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 

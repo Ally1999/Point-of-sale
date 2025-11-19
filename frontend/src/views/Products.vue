@@ -190,7 +190,6 @@ export default {
       try {
         const response = await categoriesAPI.getAll()
         this.categories = response.data
-        console.log(this.categories)
       } catch (error) {
         console.error(error)
       }

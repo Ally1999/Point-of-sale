@@ -97,11 +97,14 @@ router.post('/:id/print-thermal-receipt', async (req, res) => {
       width
     });
 
+    const escPosCommands = generateESCPOSCommands({ sale, items });
+
     res.status(200).json({
       success: true,
       message: 'Thermal receipt generated successfully.',
       payload: {
         htmlContent,
+        escPosCommands,
         printType: 'direct',
         selectedPrintType,
         width,
@@ -142,13 +145,9 @@ router.post('/', async (req, res) => {
       let lineTotal = item.quantity * item.unitPrice;
       let itemDiscountAmount = 0;
       
-      // Calculate item-level discount
-      if (item.discountType && item.discountValue > 0) {
-        if (item.discountType === 'percentage') {
-          itemDiscountAmount = lineTotal * (item.discountValue / 100);
-        } else if (item.discountType === 'amount') {
-          itemDiscountAmount = Math.min(item.discountValue, lineTotal);
-        }
+      // Calculate item-level discount (always by amount)
+      if (item.discountValue > 0) {
+        itemDiscountAmount = Math.min(item.discountValue, lineTotal);
         lineTotal -= itemDiscountAmount;
         totalItemDiscounts += itemDiscountAmount;
       }
@@ -164,20 +163,11 @@ router.post('/', async (req, res) => {
     // Calculate VAT-inclusive total before sale discount
     const vatInclusiveBeforeSaleDiscount = itemTotals.reduce((sum, item) => sum + item.lineTotal, 0);
     
-    // Apply sale-level discount
+    // Apply sale-level discount (always by amount)
     let saleDiscountAmount = 0;
-    let saleDiscountType = null;
-    let saleDiscountValue = 0;
     
-    if (saleDiscount && saleDiscount.type && saleDiscount.value > 0) {
-      saleDiscountType = saleDiscount.type;
-      saleDiscountValue = saleDiscount.value;
-      
-      if (saleDiscount.type === 'percentage') {
-        saleDiscountAmount = vatInclusiveBeforeSaleDiscount * (saleDiscount.value / 100);
-      } else if (saleDiscount.type === 'amount') {
-        saleDiscountAmount = Math.min(saleDiscount.value, vatInclusiveBeforeSaleDiscount);
-      }
+    if (saleDiscount && saleDiscount.value > 0) {
+      saleDiscountAmount = Math.min(saleDiscount.value, vatInclusiveBeforeSaleDiscount);
     }
     
     // Calculate subtotal (VAT-exclusive) and VAT by extracting from VAT-inclusive prices
@@ -210,18 +200,16 @@ router.post('/', async (req, res) => {
     // Default amountPaid to totalAmount if not provided
     const finalAmountPaid = amountPaid !== undefined && amountPaid !== null ? amountPaid : totalAmount;
     const changeAmount = finalAmountPaid - totalAmount;
-    const saleNumber = 'SALE-' + Date.now() + '-' + uuidv4().substring(0, 8).toUpperCase();
+    const saleNumber = 'SALE-' + uuidv4().substring(0, 8).toUpperCase();
     
     // Create sale
     const saleResult = await client.query(`
-      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountType", "DiscountValue", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount", "Notes")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount", "Notes")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `, [
       saleNumber,
       subTotal,
-      saleDiscountType,
-      saleDiscountValue,
       saleDiscountAmount,
       vatAmount,
       totalAmount,
@@ -237,24 +225,16 @@ router.post('/', async (req, res) => {
     for (const item of items) {
       let lineTotal = item.quantity * item.unitPrice;
       let itemDiscountAmount = 0;
-      let itemDiscountType = null;
-      let itemDiscountValue = 0;
       
-      // Calculate item-level discount
-      if (item.discountType && item.discountValue > 0) {
-        itemDiscountType = item.discountType;
-        itemDiscountValue = item.discountValue;
-        if (item.discountType === 'percentage') {
-          itemDiscountAmount = lineTotal * (item.discountValue / 100);
-        } else if (item.discountType === 'amount') {
-          itemDiscountAmount = Math.min(item.discountValue, lineTotal);
-        }
+      // Calculate item-level discount (always by amount)
+      if (item.discountValue > 0) {
+        itemDiscountAmount = Math.min(item.discountValue, lineTotal);
         lineTotal -= itemDiscountAmount;
       }
       
       await client.query(`
-        INSERT INTO "SaleItems" ("SaleID", "ProductID", "ProductName", "Barcode", "Quantity", "UnitPrice", "DiscountType", "DiscountValue", "DiscountAmount", "IsVAT", "VATRate", "ExcludeVAT", "LineTotal")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        INSERT INTO "SaleItems" ("SaleID", "ProductID", "ProductName", "Barcode", "Quantity", "UnitPrice", "DiscountAmount", "IsVAT", "VATRate", "ExcludeVAT", "LineTotal")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       `, [
         saleID,
         item.productID,
@@ -262,8 +242,6 @@ router.post('/', async (req, res) => {
         item.barcode,
         item.quantity,
         item.unitPrice,
-        itemDiscountType,
-        itemDiscountValue,
         itemDiscountAmount,
         item.isVAT ? true : false,
         item.vatRate || 0,
@@ -297,6 +275,92 @@ router.post('/', async (req, res) => {
     client.release();
   }
 });
+
+function generateESCPOSCommands({ sale, items }) {
+  // ESC/POS command constants
+  const ESC = '\x1B';
+  const GS = '\x1D';
+  const INIT = ESC + '@';
+  const CENTER = ESC + 'a' + '\x01';
+  const LEFT = ESC + 'a' + '\x00';
+  const BOLD_ON = ESC + 'E' + '\x01';
+  const BOLD_OFF = ESC + 'E' + '\x00';
+  const CUT = GS + 'V' + '\x41' + '\x03';
+  const FEED = '\n';
+  const DIVIDER = '--------------------------------\n';
+
+  let commands = INIT; // Initialize printer
+  commands += CENTER; // Center align
+  commands += BOLD_ON;
+  commands += 'POINT OF SALE\n';
+  commands += 'Demo Retail Store\n';
+  commands += '123 Market Street\n';
+  commands += 'Port Louis\n';
+  commands += BOLD_OFF;
+  commands += DIVIDER;
+  commands += 'TEL: +230 000 0000\n';
+  commands += 'VAT No. 00000000\n';
+  commands += DIVIDER;
+  commands += 'PAYMENT RECEIPT\n';
+  commands += `Date: ${formatDateTime(sale?.SaleDate)}\n`;
+  commands += `Receipt No: ${sale?.SaleNumber || 'N/A'}\n`;
+  commands += DIVIDER;
+  commands += LEFT;
+
+  // Payment info
+  commands += `Payment Type: ${sale?.PaymentName || 'N/A'}\n`;
+  commands += `Amount Paid: Rs ${formatCurrency(sale?.AmountPaid)}\n`;
+  commands += `Change: Rs ${formatCurrency(sale?.ChangeAmount)}\n`;
+  commands += DIVIDER;
+
+  // Items
+  if (items.length === 0) {
+    commands += 'No items found for this sale.\n';
+  } else {
+    items.forEach((item, index) => {
+      const discountAmount = Number(item?.DiscountAmount) || 0;
+      const vatRate = Number(item?.VATRate) || 0;
+      const isVAT = Boolean(item?.IsVAT);
+      
+      commands += `Item ${index + 1}: ${item?.ProductName || 'Item'}\n`;
+      commands += `Qty: ${item?.Quantity || 0}\n`;
+      commands += `Unit Price: Rs ${formatCurrency(item?.UnitPrice)}\n`;
+      commands += `Line Total: Rs ${formatCurrency(item?.LineTotal)}\n`;
+      if (discountAmount > 0) {
+        commands += `Discount: Rs ${formatCurrency(discountAmount)}\n`;
+      }
+      if (isVAT) {
+        commands += `VAT Rate: ${vatRate}%\n`;
+      }
+      commands += DIVIDER;
+    });
+  }
+
+  // Totals
+  commands += BOLD_ON;
+  commands += `SUBTOTAL: Rs ${formatCurrency(sale?.SubTotal)}\n`;
+  if (Number(sale?.DiscountAmount) > 0) {
+    commands += `Discount: Rs ${formatCurrency(sale?.DiscountAmount)}\n`;
+  }
+  if (Number(sale?.VATAmount) > 0) {
+    commands += `VAT: Rs ${formatCurrency(sale?.VATAmount)}\n`;
+  }
+  commands += `TOTAL: Rs ${formatCurrency(sale?.TotalAmount)}\n`;
+  commands += BOLD_OFF;
+  commands += FEED;
+  commands += CENTER;
+  commands += 'Thank you for your purchase!\n';
+  commands += '* * * * * * * * * *\n';
+  commands += FEED + FEED + FEED;
+  commands += CUT; // Cut paper
+
+  // Convert to base64 for transmission
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(commands);
+  const base64 = Buffer.from(bytes).toString('base64');
+  
+  return base64;
+}
 
 function generateThermalReceipt({ sale, items, width = 300 }) {
   const baseHeight = 400;

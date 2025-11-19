@@ -473,12 +473,11 @@ export default {
         const saleData = {
           items: this.cart.map(item => ({
             ...item,
-            discountType: item.discountValue > 0 ? 'amount' : null,
-            discountValue: item.discountValue || 0
+              discountValue: item.discountValue || 0
           })),
           paymentTypeID: this.selectedPaymentType,
           notes: '',
-          saleDiscount: this.saleDiscountValue > 0 ? { type: 'amount', value: this.saleDiscountValue } : null
+          saleDiscount: this.saleDiscountValue > 0 ? { value: this.saleDiscountValue } : null
         }
 
         const response = await salesAPI.create(saleData)
@@ -503,24 +502,117 @@ export default {
           selectedPrintType: 'direct'
         })
 
-        if (response.data.success && response.data.payload?.htmlContent) {
-          const printWindow = window.open('', '_blank')
-          printWindow.document.write(response.data.payload.htmlContent)
-          printWindow.document.close()
-
-          printWindow.onload = function() {
-            printWindow.focus()
-            printWindow.print()
-            setTimeout(() => {
-              printWindow.close()
-            }, 1000)
+        if (response.data.success && response.data.payload) {
+          // Try WebUSB direct printing first
+          if (response.data.payload.escPosCommands && 'usb' in navigator) {
+            try {
+              await this.printViaWebUSB(response.data.payload.escPosCommands)
+              this.toast.success('Receipt sent directly to printer')
+              return
+            } catch (usbError) {
+              console.warn('WebUSB printing failed, falling back to print dialog:', usbError)
+              this.toast.warning(usbError.message || 'Direct printing unavailable, opening print dialog')
+              // Fall through to print dialog
+            }
           }
+
+           // Fallback to print dialog on current page
+           if (response.data.payload.htmlContent) {
+             // Create a hidden iframe for printing
+             const iframe = document.createElement('iframe')
+             iframe.style.position = 'fixed'
+             iframe.style.right = '0'
+             iframe.style.bottom = '0'
+             iframe.style.width = '0'
+             iframe.style.height = '0'
+             iframe.style.border = 'none'
+             document.body.appendChild(iframe)
+
+             iframe.onload = () => {
+               iframe.contentWindow.focus()
+               iframe.contentWindow.print()
+               
+               // Remove iframe after printing
+               setTimeout(() => {
+                 document.body.removeChild(iframe)
+               }, 1000)
+             }
+
+             iframe.contentDocument.open()
+             iframe.contentDocument.write(response.data.payload.htmlContent)
+             iframe.contentDocument.close()
+           } else {
+             this.toast.error('Failed to generate receipt')
+           }
         } else {
           this.toast.error('Failed to generate receipt')
         }
       } catch (error) {
         this.toast.error('Failed to print receipt')
         console.error(error)
+      }
+    },
+    async printViaWebUSB(base64Commands) {
+      if (!('usb' in navigator)) {
+        throw new Error('WebUSB not supported in this browser. Please use Chrome or Edge.')
+      }
+
+      // Decode base64 commands
+      const binaryString = atob(base64Commands)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+
+      try {
+        // Request USB device (thermal printer)
+        // User will see a dialog to select their printer
+        const device = await navigator.usb.requestDevice({
+          filters: [
+            { classCode: 7 } // Printer class
+          ]
+        })
+
+        await device.open()
+        
+        // Select configuration
+        await device.selectConfiguration(1)
+        
+        // Find the printer interface
+        const configuration = device.configuration
+        const interfaceNumber = configuration.interfaces.find(
+          iface => iface.alternates.some(alt => alt.interfaceClass === 7)
+        )?.interfaceNumber
+
+        if (interfaceNumber === undefined) {
+          throw new Error('Printer interface not found. Please ensure your printer is connected and recognized.')
+        }
+
+        const alternate = configuration.interfaces[interfaceNumber].alternates[0]
+        await device.claimInterface(interfaceNumber)
+
+        // Find the OUT endpoint
+        const outEndpoint = alternate.endpoints.find(ep => ep.direction === 'out')
+        if (!outEndpoint) {
+          throw new Error('Printer output endpoint not found')
+        }
+
+        // Send data in chunks (USB has packet size limits)
+        const chunkSize = outEndpoint.packetSize || 64
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.slice(i, i + chunkSize)
+          await device.transferOut(outEndpoint.endpointNumber, chunk)
+        }
+
+        await device.releaseInterface(interfaceNumber)
+        await device.close()
+        
+        return true
+      } catch (error) {
+        if (error.name === 'NotFoundError') {
+          throw new Error('No printer selected. Please connect a USB thermal printer and try again.')
+        }
+        throw error
       }
     },
     closeReceipt() {
