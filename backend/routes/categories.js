@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const pool = await getConnection();
-    const result = await pool.query('SELECT * FROM Categories ORDER BY CategoryName');
+    const result = await pool.query('SELECT * FROM "Categories" ORDER BY "CategoryName"');
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -21,7 +21,7 @@ router.post('/', async (req, res) => {
     const { CategoryName, Description } = req.body;
     const pool = await getConnection();
     const result = await pool.query(`
-      INSERT INTO Categories (CategoryName, Description)
+      INSERT INTO Categories ("CategoryName", "Description")
       VALUES ($1, $2)
       RETURNING *
     `, [CategoryName, Description || null]);

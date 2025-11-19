@@ -13,12 +13,12 @@ CREATE TABLE IF NOT EXISTS "Categories" (
 CREATE TABLE IF NOT EXISTS "Products" (
     "ProductID" SERIAL PRIMARY KEY,
     "ProductName" VARCHAR(200) NOT NULL,
-    "Barcode" VARCHAR(100) UNIQUE,
+    "Barcode" VARCHAR(100) UNIQUE NOT NULL,
     "SKU" VARCHAR(50),
     "Description" VARCHAR(500),
     "Price" DECIMAL(18,2) NOT NULL,
     "Cost" DECIMAL(18,2),
-    "IsVAT" BOOLEAN DEFAULT true, -- true for VAT, false for non-VAT
+    "IsVAT" BOOLEAN DEFAULT true,
     "VATRate" DECIMAL(5,2) DEFAULT 0.00,
     "CategoryID" INT,
     "ImageBase64" TEXT,

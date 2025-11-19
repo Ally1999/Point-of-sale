@@ -9,10 +9,10 @@ router.get('/', async (req, res) => {
   try {
     const pool = await getConnection();
     const result = await pool.query(`
-      SELECT s.*, pt.PaymentName 
-      FROM Sales s
-      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
-      ORDER BY s.SaleDate DESC
+      SELECT s.*, pt."PaymentName" 
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
+      ORDER BY s."SaleDate" DESC
     `);
     res.json(result.rows);
   } catch (error) {
@@ -28,10 +28,10 @@ router.get('/:id', async (req, res) => {
     
     // Get sale details
     const saleResult = await pool.query(`
-      SELECT s.*, pt.PaymentName 
-      FROM Sales s
-      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
-      WHERE s.SaleID = $1
+      SELECT s.*, pt."PaymentName" 
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
+      WHERE s."SaleID" = $1
     `, [req.params.id]);
     
     if (saleResult.rows.length === 0) {
@@ -39,7 +39,7 @@ router.get('/:id', async (req, res) => {
     }
     
     // Get sale items
-    const itemsResult = await pool.query('SELECT * FROM SaleItems WHERE SaleID = $1', [req.params.id]);
+    const itemsResult = await pool.query('SELECT * FROM "SaleItems" WHERE "SaleID" = $1', [req.params.id]);
     
     res.json({
       ...saleResult.rows[0],
@@ -68,10 +68,10 @@ router.post('/:id/print-thermal-receipt', async (req, res) => {
     const pool = await getConnection();
 
     const saleResult = await pool.query(`
-      SELECT s.*, pt.PaymentName 
-      FROM Sales s
-      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
-      WHERE s.SaleID = $1
+      SELECT s.*, pt."PaymentName" 
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
+      WHERE s."SaleID" = $1
     `, [saleId]);
 
     if (saleResult.rows.length === 0) {
@@ -83,9 +83,9 @@ router.post('/:id/print-thermal-receipt', async (req, res) => {
 
     const itemsResult = await pool.query(`
       SELECT * 
-      FROM SaleItems 
-      WHERE SaleID = $1
-      ORDER BY SaleItemID ASC
+      FROM "SaleItems" 
+      WHERE "SaleID" = $1
+      ORDER BY "SaleItemID" ASC
     `, [saleId]);
 
     const sale = saleResult.rows[0];
@@ -214,7 +214,7 @@ router.post('/', async (req, res) => {
     
     // Create sale
     const saleResult = await client.query(`
-      INSERT INTO Sales (SaleNumber, SubTotal, DiscountType, DiscountValue, DiscountAmount, VATAmount, TotalAmount, PaymentTypeID, AmountPaid, ChangeAmount, Notes)
+      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountType", "DiscountValue", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount", "Notes")
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `, [
@@ -231,7 +231,7 @@ router.post('/', async (req, res) => {
       notes || null
     ]);
     
-    const saleID = saleResult.rows[0].saleid;
+    const saleID = saleResult.rows[0].SaleID;
     
     // Create sale items
     for (const item of items) {
@@ -253,13 +253,13 @@ router.post('/', async (req, res) => {
       }
       
       await client.query(`
-        INSERT INTO SaleItems (SaleID, ProductID, ProductName, Barcode, Quantity, UnitPrice, DiscountType, DiscountValue, DiscountAmount, IsVAT, VATRate, ExcludeVAT, LineTotal)
+        INSERT INTO "SaleItems" ("SaleID", "ProductID", "ProductName", "Barcode", "Quantity", "UnitPrice", "DiscountType", "DiscountValue", "DiscountAmount", "IsVAT", "VATRate", "ExcludeVAT", "LineTotal")
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       `, [
         saleID,
         item.productID,
         item.productName,
-        item.barcode || null,
+        item.barcode,
         item.quantity,
         item.unitPrice,
         itemDiscountType,
@@ -277,13 +277,13 @@ router.post('/', async (req, res) => {
     
     // Fetch complete sale with items
     const completeSale = await pool.query(`
-      SELECT s.*, pt.PaymentName 
-      FROM Sales s
-      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
-      WHERE s.SaleID = $1
+      SELECT s.*, pt."PaymentName" 
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
+      WHERE s."SaleID" = $1
     `, [saleID]);
     
-    const saleItems = await pool.query('SELECT * FROM SaleItems WHERE SaleID = $1', [saleID]);
+    const saleItems = await pool.query('SELECT * FROM "SaleItems" WHERE "SaleID" = $1', [saleID]);
     
     res.status(201).json({
       ...completeSale.rows[0],

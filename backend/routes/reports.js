@@ -12,26 +12,26 @@ router.get('/sales-summary', async (req, res) => {
     let query = `
       SELECT 
         COUNT(*) as "TotalSales",
-        SUM(TotalAmount) as "TotalRevenue",
-        SUM(SubTotal) as "TotalSubtotal",
-        SUM(VATAmount) as "TotalVAT",
-        SUM(DiscountAmount) as "TotalDiscounts",
-        SUM(AmountPaid) as "TotalAmountPaid",
-        SUM(ChangeAmount) as "TotalChange"
-      FROM Sales
+        SUM("TotalAmount") as "TotalRevenue",
+        SUM("SubTotal") as "TotalSubtotal",
+        SUM("VATAmount") as "TotalVAT",
+        SUM("DiscountAmount") as "TotalDiscounts",
+        SUM("AmountPaid") as "TotalAmountPaid",
+        SUM("ChangeAmount") as "TotalChange"
+      FROM "Sales"
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
     
     if (startDate) {
-      query += ` AND SaleDate >= $${paramIndex}`;
+      query += ` AND "SaleDate" >= $${paramIndex}`;
       params.push(new Date(startDate));
       paramIndex++;
     }
     
     if (endDate) {
-      query += ` AND SaleDate <= $${paramIndex}`;
+      query += ` AND "SaleDate" <= $${paramIndex}`;
       params.push(new Date(endDate));
       paramIndex++;
     }
@@ -52,31 +52,31 @@ router.get('/sales-by-payment', async (req, res) => {
     
     let query = `
       SELECT 
-        pt.PaymentName,
-        COUNT(s.SaleID) as "SaleCount",
-        SUM(s.TotalAmount) as "TotalRevenue",
-        SUM(s.SubTotal) as "TotalSubtotal",
-        SUM(s.VATAmount) as "TotalVAT"
-      FROM Sales s
-      LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
+        pt."PaymentName",
+        COUNT(s."SaleID") as "SaleCount",
+        SUM(s."TotalAmount") as "TotalRevenue",
+        SUM(s."SubTotal") as "TotalSubtotal",
+        SUM(s."VATAmount") as "TotalVAT"
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
     
     if (startDate) {
-      query += ` AND s.SaleDate >= $${paramIndex}`;
+      query += ` AND s."SaleDate" >= $${paramIndex}`;
       params.push(new Date(startDate));
       paramIndex++;
     }
     
     if (endDate) {
-      query += ` AND s.SaleDate <= $${paramIndex}`;
+      query += ` AND s."SaleDate" <= $${paramIndex}`;
       params.push(new Date(endDate));
       paramIndex++;
     }
     
-    query += ' GROUP BY pt.PaymentName ORDER BY "TotalRevenue" DESC';
+    query += ' GROUP BY pt."PaymentName" ORDER BY "TotalRevenue" DESC';
     
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -94,31 +94,31 @@ router.get('/top-products', async (req, res) => {
     
     let query = `
       SELECT 
-        si.ProductName,
-        SUM(si.Quantity) as "TotalQuantity",
-        SUM(si.LineTotal) as "TotalRevenue",
-        COUNT(DISTINCT si.SaleID) as "SaleCount"
-      FROM SaleItems si
-      INNER JOIN Sales s ON si.SaleID = s.SaleID
+        si."ProductName",
+        SUM(si."Quantity") as "TotalQuantity",
+        SUM(si."LineTotal") as "TotalRevenue",
+        COUNT(DISTINCT si."SaleID") as "SaleCount"
+      FROM "SaleItems" si
+      INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
     
     if (startDate) {
-      query += ` AND s.SaleDate >= $${paramIndex}`;
+      query += ` AND s."SaleDate" >= $${paramIndex}`;
       params.push(new Date(startDate));
       paramIndex++;
     }
     
     if (endDate) {
-      query += ` AND s.SaleDate <= $${paramIndex}`;
+      query += ` AND s."SaleDate" <= $${paramIndex}`;
       params.push(new Date(endDate));
       paramIndex++;
     }
     
     query += `
-      GROUP BY si.ProductName
+      GROUP BY si."ProductName"
       ORDER BY "TotalRevenue" DESC
     `;
     
@@ -143,31 +143,31 @@ router.get('/daily-sales', async (req, res) => {
     
     let query = `
       SELECT 
-        DATE(SaleDate) as "SaleDate",
+        DATE("SaleDate") as "SaleDate",
         COUNT(*) as "SaleCount",
-        SUM(TotalAmount) as "TotalRevenue",
-        SUM(SubTotal) as "TotalSubtotal",
-        SUM(VATAmount) as "TotalVAT",
-        SUM(DiscountAmount) as "TotalDiscounts"
-      FROM Sales
+        SUM("TotalAmount") as "TotalRevenue",
+        SUM("SubTotal") as "TotalSubtotal",
+        SUM("VATAmount") as "TotalVAT",
+        SUM("DiscountAmount") as "TotalDiscounts"
+      FROM "Sales"
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
     
     if (startDate) {
-      query += ` AND SaleDate >= $${paramIndex}`;
+      query += ` AND "SaleDate" >= $${paramIndex}`;
       params.push(new Date(startDate));
       paramIndex++;
     }
     
     if (endDate) {
-      query += ` AND SaleDate <= $${paramIndex}`;
+      query += ` AND "SaleDate" <= $${paramIndex}`;
       params.push(new Date(endDate));
       paramIndex++;
     }
     
-    query += ' GROUP BY DATE(SaleDate) ORDER BY "SaleDate" DESC';
+    query += ' GROUP BY DATE("SaleDate") ORDER BY "SaleDate" DESC';
     
     const result = await pool.query(query, params);
     res.json(result.rows);
@@ -185,38 +185,38 @@ router.get('/vat-report', async (req, res) => {
     
     let query = `
       SELECT 
-        si.SaleItemID,
-        si.SaleID,
-        si.ProductName,
-        si.Barcode,
-        si.Quantity,
-        si.UnitPrice,
-        si.LineTotal,
-        si.IsVAT,
-        si.VATRate,
-        s.SaleDate,
-        s.SaleNumber,
-        s.VATAmount as "SaleVATAmount"
-      FROM SaleItems si
-      INNER JOIN Sales s ON si.SaleID = s.SaleID
-      WHERE si.IsVAT = true AND si.VATRate > 0
+        si."SaleItemID",
+        si."SaleID",
+        si."ProductName",
+        si."Barcode",
+        si."Quantity",
+        si."UnitPrice",
+        si."LineTotal",
+        si."IsVAT",
+        si."VATRate",
+        s."SaleDate",
+        s."SaleNumber",
+        s."VATAmount" as "SaleVATAmount"
+      FROM "SaleItems" si
+      INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
+      WHERE si."IsVAT" = true AND si."VATRate" > 0
     `;
     const params = [];
     let paramIndex = 1;
     
     if (startDate) {
-      query += ` AND s.SaleDate >= $${paramIndex}`;
+      query += ` AND s."SaleDate" >= $${paramIndex}`;
       params.push(new Date(startDate));
       paramIndex++;
     }
     
     if (endDate) {
-      query += ` AND s.SaleDate <= $${paramIndex}`;
+      query += ` AND s."SaleDate" <= $${paramIndex}`;
       params.push(new Date(endDate));
       paramIndex++;
     }
     
-    query += ' ORDER BY s.SaleDate DESC, si.ProductName';
+    query += ' ORDER BY s."SaleDate" DESC, si."ProductName"';
     
     const result = await pool.query(query, params);
     
@@ -316,30 +316,30 @@ router.get('/vat-summary', async (req, res) => {
     
     let query = `
       SELECT 
-        DATE(s.SaleDate) as "SaleDate",
-        COUNT(DISTINCT s.SaleID) as "SaleCount",
-        SUM(s.VATAmount) as "TotalVATCollected",
-        COUNT(CASE WHEN si.IsVAT = true AND si.VATRate > 0 THEN 1 END) as "VATItemCount"
-      FROM Sales s
-      LEFT JOIN SaleItems si ON s.SaleID = si.SaleID
+        DATE(s."SaleDate") as "SaleDate",
+        COUNT(DISTINCT s."SaleID") as "SaleCount",
+        SUM(s."VATAmount") as "TotalVATCollected",
+        COUNT(CASE WHEN si."IsVAT" = true AND si."VATRate" > 0 THEN 1 END) as "VATItemCount"
+      FROM "Sales" s
+      LEFT JOIN "SaleItems" si ON s."SaleID" = si."SaleID"
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
     
     if (startDate) {
-      query += ` AND s.SaleDate >= $${paramIndex}`;
+      query += ` AND s."SaleDate" >= $${paramIndex}`;
       params.push(new Date(startDate));
       paramIndex++;
     }
     
     if (endDate) {
-      query += ` AND s.SaleDate <= $${paramIndex}`;
+      query += ` AND s."SaleDate" <= $${paramIndex}`;
       params.push(new Date(endDate));
       paramIndex++;
     }
     
-    query += ' GROUP BY DATE(s.SaleDate) ORDER BY "SaleDate" DESC';
+    query += ' GROUP BY DATE(s."SaleDate") ORDER BY "SaleDate" DESC';
     
     const result = await pool.query(query, params);
     
@@ -347,12 +347,12 @@ router.get('/vat-summary', async (req, res) => {
     const processedResult = await Promise.all(result.rows.map(async (row) => {
       const dateQuery = `
         SELECT 
-          si.LineTotal,
-          si.VATRate
-        FROM SaleItems si
-        INNER JOIN Sales s ON si.SaleID = s.SaleID
-        WHERE DATE(s.SaleDate) = $1
-          AND si.IsVAT = true AND si.VATRate > 0
+          si."LineTotal",
+          si."VATRate"
+        FROM "SaleItems" si
+        INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
+        WHERE DATE(s."SaleDate") = $1
+          AND si."IsVAT" = true AND si."VATRate" > 0
       `;
       
       const itemsResult = await pool.query(dateQuery, [row.SaleDate]);
@@ -392,39 +392,39 @@ router.get('/product-sales', async (req, res) => {
     
     let query = `
       SELECT 
-        si.ProductName,
-        si.Barcode,
-        SUM(si.Quantity) as "TotalQuantity",
-        AVG(si.UnitPrice) as "AvgUnitPrice",
-        SUM(si.LineTotal) as "TotalRevenue",
-        SUM(si.DiscountAmount) as "TotalDiscounts",
-        COUNT(DISTINCT si.SaleID) as "SaleCount"
-      FROM SaleItems si
-      INNER JOIN Sales s ON si.SaleID = s.SaleID
+        si."ProductName",
+        si."Barcode",
+        SUM(si."Quantity") as "TotalQuantity",
+        AVG(si."UnitPrice") as "AvgUnitPrice",
+        SUM(si."LineTotal") as "TotalRevenue",
+        SUM(si."DiscountAmount") as "TotalDiscounts",
+        COUNT(DISTINCT si."SaleID") as "SaleCount"
+      FROM "SaleItems" si
+      INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
     
     if (productId) {
-      query += ` AND si.ProductID = $${paramIndex}`;
+      query += ` AND si."ProductID" = $${paramIndex}`;
       params.push(parseInt(productId));
       paramIndex++;
     }
     
     if (startDate) {
-      query += ` AND s.SaleDate >= $${paramIndex}`;
+      query += ` AND s."SaleDate" >= $${paramIndex}`;
       params.push(new Date(startDate));
       paramIndex++;
     }
     
     if (endDate) {
-      query += ` AND s.SaleDate <= $${paramIndex}`;
+      query += ` AND s."SaleDate" <= $${paramIndex}`;
       params.push(new Date(endDate));
       paramIndex++;
     }
     
-    query += ' GROUP BY si.ProductName, si.Barcode ORDER BY "TotalRevenue" DESC';
+    query += ' GROUP BY si."ProductName", si."Barcode" ORDER BY "TotalRevenue" DESC';
     
     const result = await pool.query(query, params);
     res.json(result.rows);
