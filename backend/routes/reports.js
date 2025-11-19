@@ -1,6 +1,5 @@
 import express from 'express';
 import { getConnection } from '../config/database.js';
-import sql from '../config/database.js';
 
 const router = express.Router();
 
@@ -12,31 +11,33 @@ router.get('/sales-summary', async (req, res) => {
     
     let query = `
       SELECT 
-        COUNT(*) as TotalSales,
-        SUM(TotalAmount) as TotalRevenue,
-        SUM(SubTotal) as TotalSubtotal,
-        SUM(VATAmount) as TotalVAT,
-        SUM(DiscountAmount) as TotalDiscounts,
-        SUM(AmountPaid) as TotalAmountPaid,
-        SUM(ChangeAmount) as TotalChange
+        COUNT(*) as "TotalSales",
+        SUM(TotalAmount) as "TotalRevenue",
+        SUM(SubTotal) as "TotalSubtotal",
+        SUM(VATAmount) as "TotalVAT",
+        SUM(DiscountAmount) as "TotalDiscounts",
+        SUM(AmountPaid) as "TotalAmountPaid",
+        SUM(ChangeAmount) as "TotalChange"
       FROM Sales
       WHERE 1=1
     `;
-    
-    const request = pool.request();
+    const params = [];
+    let paramIndex = 1;
     
     if (startDate) {
-      query += ' AND SaleDate >= @startDate';
-      request.input('startDate', sql.DateTime, new Date(startDate));
+      query += ` AND SaleDate >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
     }
     
     if (endDate) {
-      query += ' AND SaleDate <= @endDate';
-      request.input('endDate', sql.DateTime, new Date(endDate));
+      query += ` AND SaleDate <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
     }
     
-    const result = await request.query(query);
-    res.json(result.recordset[0] || {});
+    const result = await pool.query(query, params);
+    res.json(result.rows[0] || {});
   } catch (error) {
     console.error('Error fetching sales summary:', error);
     res.status(500).json({ error: 'Failed to fetch sales summary' });
@@ -52,31 +53,33 @@ router.get('/sales-by-payment', async (req, res) => {
     let query = `
       SELECT 
         pt.PaymentName,
-        COUNT(s.SaleID) as SaleCount,
-        SUM(s.TotalAmount) as TotalRevenue,
-        SUM(s.SubTotal) as TotalSubtotal,
-        SUM(s.VATAmount) as TotalVAT
+        COUNT(s.SaleID) as "SaleCount",
+        SUM(s.TotalAmount) as "TotalRevenue",
+        SUM(s.SubTotal) as "TotalSubtotal",
+        SUM(s.VATAmount) as "TotalVAT"
       FROM Sales s
       LEFT JOIN PaymentTypes pt ON s.PaymentTypeID = pt.PaymentTypeID
       WHERE 1=1
     `;
-    
-    const request = pool.request();
+    const params = [];
+    let paramIndex = 1;
     
     if (startDate) {
-      query += ' AND s.SaleDate >= @startDate';
-      request.input('startDate', sql.DateTime, new Date(startDate));
+      query += ` AND s.SaleDate >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
     }
     
     if (endDate) {
-      query += ' AND s.SaleDate <= @endDate';
-      request.input('endDate', sql.DateTime, new Date(endDate));
+      query += ` AND s.SaleDate <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
     }
     
-    query += ' GROUP BY pt.PaymentName ORDER BY TotalRevenue DESC';
+    query += ' GROUP BY pt.PaymentName ORDER BY "TotalRevenue" DESC';
     
-    const result = await request.query(query);
-    res.json(result.recordset);
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching sales by payment:', error);
     res.status(500).json({ error: 'Failed to fetch sales by payment' });
@@ -92,37 +95,40 @@ router.get('/top-products', async (req, res) => {
     let query = `
       SELECT 
         si.ProductName,
-        SUM(si.Quantity) as TotalQuantity,
-        SUM(si.LineTotal) as TotalRevenue,
-        COUNT(DISTINCT si.SaleID) as SaleCount
+        SUM(si.Quantity) as "TotalQuantity",
+        SUM(si.LineTotal) as "TotalRevenue",
+        COUNT(DISTINCT si.SaleID) as "SaleCount"
       FROM SaleItems si
       INNER JOIN Sales s ON si.SaleID = s.SaleID
       WHERE 1=1
     `;
-    
-    const request = pool.request();
+    const params = [];
+    let paramIndex = 1;
     
     if (startDate) {
-      query += ' AND s.SaleDate >= @startDate';
-      request.input('startDate', sql.DateTime, new Date(startDate));
+      query += ` AND s.SaleDate >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
     }
     
     if (endDate) {
-      query += ' AND s.SaleDate <= @endDate';
-      request.input('endDate', sql.DateTime, new Date(endDate));
+      query += ` AND s.SaleDate <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
     }
     
     query += `
       GROUP BY si.ProductName
-      ORDER BY TotalRevenue DESC
+      ORDER BY "TotalRevenue" DESC
     `;
     
     if (limit) {
-      query += ` OFFSET 0 ROWS FETCH NEXT ${parseInt(limit)} ROWS ONLY`;
+      query += ` LIMIT $${paramIndex}`;
+      params.push(parseInt(limit));
     }
     
-    const result = await request.query(query);
-    res.json(result.recordset);
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching top products:', error);
     res.status(500).json({ error: 'Failed to fetch top products' });
@@ -137,32 +143,34 @@ router.get('/daily-sales', async (req, res) => {
     
     let query = `
       SELECT 
-        CAST(SaleDate AS DATE) as SaleDate,
-        COUNT(*) as SaleCount,
-        SUM(TotalAmount) as TotalRevenue,
-        SUM(SubTotal) as TotalSubtotal,
-        SUM(VATAmount) as TotalVAT,
-        SUM(DiscountAmount) as TotalDiscounts
+        DATE(SaleDate) as "SaleDate",
+        COUNT(*) as "SaleCount",
+        SUM(TotalAmount) as "TotalRevenue",
+        SUM(SubTotal) as "TotalSubtotal",
+        SUM(VATAmount) as "TotalVAT",
+        SUM(DiscountAmount) as "TotalDiscounts"
       FROM Sales
       WHERE 1=1
     `;
-    
-    const request = pool.request();
+    const params = [];
+    let paramIndex = 1;
     
     if (startDate) {
-      query += ' AND SaleDate >= @startDate';
-      request.input('startDate', sql.DateTime, new Date(startDate));
+      query += ` AND SaleDate >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
     }
     
     if (endDate) {
-      query += ' AND SaleDate <= @endDate';
-      request.input('endDate', sql.DateTime, new Date(endDate));
+      query += ` AND SaleDate <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
     }
     
-    query += ' GROUP BY CAST(SaleDate AS DATE) ORDER BY SaleDate DESC';
+    query += ' GROUP BY DATE(SaleDate) ORDER BY "SaleDate" DESC';
     
-    const result = await request.query(query);
-    res.json(result.recordset);
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching daily sales:', error);
     res.status(500).json({ error: 'Failed to fetch daily sales' });
@@ -188,31 +196,33 @@ router.get('/vat-report', async (req, res) => {
         si.VATRate,
         s.SaleDate,
         s.SaleNumber,
-        s.VATAmount as SaleVATAmount
+        s.VATAmount as "SaleVATAmount"
       FROM SaleItems si
       INNER JOIN Sales s ON si.SaleID = s.SaleID
-      WHERE si.IsVAT = 1 AND si.VATRate > 0
+      WHERE si.IsVAT = true AND si.VATRate > 0
     `;
-    
-    const request = pool.request();
+    const params = [];
+    let paramIndex = 1;
     
     if (startDate) {
-      query += ' AND s.SaleDate >= @startDate';
-      request.input('startDate', sql.DateTime, new Date(startDate));
+      query += ` AND s.SaleDate >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
     }
     
     if (endDate) {
-      query += ' AND s.SaleDate <= @endDate';
-      request.input('endDate', sql.DateTime, new Date(endDate));
+      query += ` AND s.SaleDate <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
     }
     
     query += ' ORDER BY s.SaleDate DESC, si.ProductName';
     
-    const result = await request.query(query);
+    const result = await pool.query(query, params);
     
     // Group items by sale to calculate actual VAT allocation
     const itemsBySale = {};
-    result.recordset.forEach(item => {
+    result.rows.forEach(item => {
       if (!itemsBySale[item.SaleID]) {
         itemsBySale[item.SaleID] = {
           saleVATAmount: parseFloat(item.SaleVATAmount || 0),
@@ -223,7 +233,7 @@ router.get('/vat-report', async (req, res) => {
     });
     
     // Process the data to calculate VAT collected vs excluded
-    const processedData = result.recordset.map(item => {
+    const processedData = result.rows.map(item => {
       const lineTotal = parseFloat(item.LineTotal);
       const vatRate = parseFloat(item.VATRate) / 100;
       
@@ -306,51 +316,51 @@ router.get('/vat-summary', async (req, res) => {
     
     let query = `
       SELECT 
-        CAST(s.SaleDate AS DATE) as SaleDate,
-        COUNT(DISTINCT s.SaleID) as SaleCount,
-        SUM(s.VATAmount) as TotalVATCollected,
-        COUNT(CASE WHEN si.IsVAT = 1 AND si.VATRate > 0 THEN 1 END) as VATItemCount
+        DATE(s.SaleDate) as "SaleDate",
+        COUNT(DISTINCT s.SaleID) as "SaleCount",
+        SUM(s.VATAmount) as "TotalVATCollected",
+        COUNT(CASE WHEN si.IsVAT = true AND si.VATRate > 0 THEN 1 END) as "VATItemCount"
       FROM Sales s
       LEFT JOIN SaleItems si ON s.SaleID = si.SaleID
       WHERE 1=1
     `;
-    
-    const request = pool.request();
+    const params = [];
+    let paramIndex = 1;
     
     if (startDate) {
-      query += ' AND s.SaleDate >= @startDate';
-      request.input('startDate', sql.DateTime, new Date(startDate));
+      query += ` AND s.SaleDate >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
     }
     
     if (endDate) {
-      query += ' AND s.SaleDate <= @endDate';
-      request.input('endDate', sql.DateTime, new Date(endDate));
+      query += ` AND s.SaleDate <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
     }
     
-    query += ' GROUP BY CAST(s.SaleDate AS DATE) ORDER BY SaleDate DESC';
+    query += ' GROUP BY DATE(s.SaleDate) ORDER BY "SaleDate" DESC';
     
-    const result = await request.query(query);
+    const result = await pool.query(query, params);
     
     // Calculate expected VAT for each day
-    const processedResult = await Promise.all(result.recordset.map(async (row) => {
+    const processedResult = await Promise.all(result.rows.map(async (row) => {
       const dateQuery = `
         SELECT 
           si.LineTotal,
           si.VATRate
         FROM SaleItems si
         INNER JOIN Sales s ON si.SaleID = s.SaleID
-        WHERE CAST(s.SaleDate AS DATE) = @saleDate
-          AND si.IsVAT = 1 AND si.VATRate > 0
+        WHERE DATE(s.SaleDate) = $1
+          AND si.IsVAT = true AND si.VATRate > 0
       `;
       
-      const dateRequest = pool.request();
-      dateRequest.input('saleDate', sql.Date, row.SaleDate);
-      const itemsResult = await dateRequest.query(dateQuery);
+      const itemsResult = await pool.query(dateQuery, [row.SaleDate]);
       
       let totalExpectedVAT = 0;
       let totalExcludedVAT = 0;
       
-      itemsResult.recordset.forEach(item => {
+      itemsResult.rows.forEach(item => {
         const vatRate = parseFloat(item.VATRate) / 100;
         const vatMultiplier = 1 + vatRate;
         const expectedBasePrice = parseFloat(item.LineTotal) / vatMultiplier;
@@ -384,37 +394,40 @@ router.get('/product-sales', async (req, res) => {
       SELECT 
         si.ProductName,
         si.Barcode,
-        SUM(si.Quantity) as TotalQuantity,
-        AVG(si.UnitPrice) as AvgUnitPrice,
-        SUM(si.LineTotal) as TotalRevenue,
-        SUM(si.DiscountAmount) as TotalDiscounts,
-        COUNT(DISTINCT si.SaleID) as SaleCount
+        SUM(si.Quantity) as "TotalQuantity",
+        AVG(si.UnitPrice) as "AvgUnitPrice",
+        SUM(si.LineTotal) as "TotalRevenue",
+        SUM(si.DiscountAmount) as "TotalDiscounts",
+        COUNT(DISTINCT si.SaleID) as "SaleCount"
       FROM SaleItems si
       INNER JOIN Sales s ON si.SaleID = s.SaleID
       WHERE 1=1
     `;
-    
-    const request = pool.request();
+    const params = [];
+    let paramIndex = 1;
     
     if (productId) {
-      query += ' AND si.ProductID = @productId';
-      request.input('productId', sql.Int, parseInt(productId));
+      query += ` AND si.ProductID = $${paramIndex}`;
+      params.push(parseInt(productId));
+      paramIndex++;
     }
     
     if (startDate) {
-      query += ' AND s.SaleDate >= @startDate';
-      request.input('startDate', sql.DateTime, new Date(startDate));
+      query += ` AND s.SaleDate >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
     }
     
     if (endDate) {
-      query += ' AND s.SaleDate <= @endDate';
-      request.input('endDate', sql.DateTime, new Date(endDate));
+      query += ` AND s.SaleDate <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
     }
     
-    query += ' GROUP BY si.ProductName, si.Barcode ORDER BY TotalRevenue DESC';
+    query += ' GROUP BY si.ProductName, si.Barcode ORDER BY "TotalRevenue" DESC';
     
-    const result = await request.query(query);
-    res.json(result.recordset);
+    const result = await pool.query(query, params);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching product sales:', error);
     res.status(500).json({ error: 'Failed to fetch product sales' });

@@ -23,11 +23,12 @@
               @click="addToCart(product)"
             >
               <img
-                v-if="product.ImagePath"
-                :src="`http://localhost:3000${product.ImagePath}`"
+                v-if="product.ImageBase64"
+                :src="product.ImageBase64"
                 :alt="product.ProductName"
                 class="product-image-small"
               />
+              <span v-else class="no-image">No Image</span>
               <div class="product-info">
                 <div class="product-name">{{ product.ProductName }}</div>
                 <div class="product-price">Rs {{ formatPrice(product.Price) }}</div>
@@ -562,6 +563,11 @@ export default {
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s;
+}
+
+.no-image {
+  font-size: 12px;
+  color: #999;
 }
 
 .product-item:hover {

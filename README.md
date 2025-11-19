@@ -1,6 +1,6 @@
 # Point of Sale System
 
-A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, Express, and MS SQL Server. The system covers the full in-store workflow—from catalog maintenance to checkout, VAT handling, and receipt generation.
+A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, Express, and PostgreSQL. The system covers the full in-store workflow—from catalog maintenance to checkout, VAT handling, and receipt generation.
 
 ---
 
@@ -8,7 +8,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 
 - **Fast barcode lookup** – Scan or type barcodes to add items instantly.
 - **Rich product catalog** – Manage descriptions, VAT flags, stock, and images.
-- **Image-in-database storage** – Product photos are stored as Base64 directly in SQL Server, simplifying deployment (no more upload folders).
+- **Image-in-database storage** – Product photos are stored as Base64 directly in PostgreSQL, simplifying deployment (no more upload folders).
 - **Dual discount model** – Apply fixed-amount discounts per line item and for the overall cart; percentage discounts are intentionally removed to reduce pricing mistakes.
 - **VAT awareness** – Track VAT-inclusive pricing with per-line VAT exclusion toggles and clear receipt labelling.
 - **Payment flexibility** – Ships with default tenders and supports receipt regeneration and printing.
@@ -18,7 +18,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 
 ## What’s New
 
-- Product images now save as Base64 blobs in SQL Server.
+- Product images now save as Base64 blobs in PostgreSQL.
 - Item and cart discounts are amount-only (percentage option removed).
 - Sales lines can mark VAT as excluded; receipts hide the VAT badge accordingly.
 - Backend request limits tuned for Base64 uploads (5 MB JSON payloads).
@@ -28,8 +28,8 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 ## Tech Stack
 
 - **Frontend:** Vue 3, Vite, Axios, Vue Toastification
-- **Backend:** Node.js 18+, Express, MSSQL (node-mssql)
-- **Database:** Microsoft SQL Server (2017 or later recommended)
+- **Backend:** Node.js 18+, Express, PostgreSQL (pg)
+- **Database:** PostgreSQL (12 or later recommended)
 
 > ℹ️ Multer and on-disk image storage were removed; no additional file-storage middleware is required.
 
@@ -39,7 +39,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 
 - Node.js 18 or newer
 - npm 9+ (bundled with Node 18) or Yarn
-- Microsoft SQL Server (Express or higher) with Mixed-Mode authentication enabled
+- PostgreSQL (12 or later) with a user that has database creation rights
 
 ---
 
@@ -56,12 +56,11 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
    - Copy `backend/.env.example` to `backend/.env` (if needed).
    - Update the connection settings:
      ```ini
-     DB_SERVER=localhost
+     DB_HOST=localhost
      DB_DATABASE=POS_DB
-     DB_USER=sa
+     DB_USER=postgres
      DB_PASSWORD=YourPassword123
-     DB_PORT=1433
-     DB_TRUST_CERT=true
+     DB_PORT=5432
      ```
 
 3. **Start the Servers**
@@ -86,7 +85,7 @@ The first backend launch will create tables and seed defaults (payment types, sa
 
 - **Automatic migrations:** `backend/database/init.js` creates missing tables/columns on boot.
 - **Schema snapshot:** `backend/database/schema.sql` provides the full structure for manual deployment.
-- **Base64 images:** The `Products` table uses an `ImageBase64` column (`NVARCHAR(MAX)`); no file share is required.
+- **Base64 images:** The `Products` table uses an `ImageBase64` column (`TEXT`); no file share is required.
 
 ---
 
@@ -165,7 +164,7 @@ Point-of-sale/
 
 | Issue | Quick Fix |
 | --- | --- |
-| SQL login fails | Ensure SQL Server service is running, Mixed Mode auth enabled, credentials match `.env`. |
+| PostgreSQL connection fails | Ensure PostgreSQL service is running, verify credentials match `.env`, and confirm the database exists. |
 | Backend rejects image upload | Base64 payloads are capped at 5 MB—compress/resize the image and retry. |
 | Ports already in use | Change `PORT` in `backend/.env` and/or adjust Vite port in `frontend/vite.config.js`. |
 | Barcode scan not detected | Focus the scan input (POS page) and ensure the scanner sends an Enter key. |

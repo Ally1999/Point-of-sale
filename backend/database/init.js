@@ -1,177 +1,192 @@
 import { getConnection } from '../config/database.js';
-import sql from '../config/database.js';
 
 export const initializeDatabase = async () => {
   try {
     const pool = await getConnection();
-    const request = pool.request();
     
     // Create Categories Table
     try {
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Categories]') AND type in (N'U'))
-        CREATE TABLE Categories (
-          CategoryID INT PRIMARY KEY IDENTITY(1,1),
-          CategoryName NVARCHAR(100) NOT NULL,
-          Description NVARCHAR(255),
-          CreatedAt DATETIME DEFAULT GETDATE()
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "Categories" (
+          "CategoryID" SERIAL PRIMARY KEY,
+          "CategoryName" VARCHAR(100) NOT NULL,
+          "Description" VARCHAR(255),
+          "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
     } catch (error) {
-      if (!error.message.includes('already exists')) {
-        console.error('Error creating Categories table:', error.message);
-      }
+      console.error('Error creating Categories table:', error.message);
     }
     
     // Create Products Table
     try {
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Products]') AND type in (N'U'))
-        CREATE TABLE Products (
-          ProductID INT PRIMARY KEY IDENTITY(1,1),
-          ProductName NVARCHAR(200) NOT NULL,
-          Barcode NVARCHAR(100) UNIQUE,
-          SKU NVARCHAR(50),
-          Description NVARCHAR(500),
-          Price DECIMAL(18,2) NOT NULL,
-          Cost DECIMAL(18,2),
-          IsVAT BIT DEFAULT 1,
-          VATRate DECIMAL(5,2) DEFAULT 0.00,
-          CategoryID INT,
-          ImageBase64 NVARCHAR(MAX),
-          StockQuantity INT DEFAULT 0,
-          IsActive BIT DEFAULT 1,
-          CreatedAt DATETIME DEFAULT GETDATE(),
-          UpdatedAt DATETIME DEFAULT GETDATE(),
-          FOREIGN KEY (CategoryID) REFERENCES Categories(CategoryID)
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "Products" (
+          "ProductID" SERIAL PRIMARY KEY,
+          "ProductName" VARCHAR(200) NOT NULL,
+          "Barcode" VARCHAR(100) UNIQUE,
+          "SKU" VARCHAR(50),
+          "Description" VARCHAR(500),
+          "Price" DECIMAL(18,2) NOT NULL,
+          "Cost" DECIMAL(18,2),
+          "IsVAT" BOOLEAN DEFAULT true,
+          "VATRate" DECIMAL(5,2) DEFAULT 0.00,
+          "CategoryID" INT,
+          "ImageBase64" TEXT,
+          "IsActive" BOOLEAN DEFAULT true,
+          "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "UpdatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("CategoryID") REFERENCES "Categories"("CategoryID")
         )
       `);
     } catch (error) {
-      if (!error.message.includes('already exists')) {
-        console.error('Error creating Products table:', error.message);
-      }
+      console.error('Error creating Products table:', error.message);
     }
     
     // Create PaymentTypes Table
     try {
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PaymentTypes]') AND type in (N'U'))
-        CREATE TABLE PaymentTypes (
-          PaymentTypeID INT PRIMARY KEY IDENTITY(1,1),
-          PaymentName NVARCHAR(50) NOT NULL,
-          Description NVARCHAR(255),
-          IsActive BIT DEFAULT 1
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "PaymentTypes" (
+          "PaymentTypeID" SERIAL PRIMARY KEY,
+          "PaymentName" VARCHAR(50) NOT NULL,
+          "Description" VARCHAR(255),
+          "IsActive" BOOLEAN DEFAULT true
         )
       `);
     } catch (error) {
-      if (!error.message.includes('already exists')) {
-        console.error('Error creating PaymentTypes table:', error.message);
-      }
+      console.error('Error creating PaymentTypes table:', error.message);
     }
     
     // Create Sales Table
     try {
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Sales]') AND type in (N'U'))
-        CREATE TABLE Sales (
-          SaleID INT PRIMARY KEY IDENTITY(1,1),
-          SaleNumber NVARCHAR(50) UNIQUE NOT NULL,
-          SaleDate DATETIME DEFAULT GETDATE(),
-          SubTotal DECIMAL(18,2) NOT NULL,
-          DiscountType NVARCHAR(20) DEFAULT NULL,
-          DiscountValue DECIMAL(18,2) DEFAULT 0.00,
-          DiscountAmount DECIMAL(18,2) DEFAULT 0.00,
-          VATAmount DECIMAL(18,2) DEFAULT 0.00,
-          TotalAmount DECIMAL(18,2) NOT NULL,
-          PaymentTypeID INT,
-          AmountPaid DECIMAL(18,2) NOT NULL,
-          ChangeAmount DECIMAL(18,2) DEFAULT 0.00,
-          Notes NVARCHAR(500),
-          CreatedAt DATETIME DEFAULT GETDATE(),
-          FOREIGN KEY (PaymentTypeID) REFERENCES PaymentTypes(PaymentTypeID)
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "Sales" (
+          "SaleID" SERIAL PRIMARY KEY,
+          "SaleNumber" VARCHAR(50) UNIQUE NOT NULL,
+          "SaleDate" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "SubTotal" DECIMAL(18,2) NOT NULL,
+          "DiscountType" VARCHAR(20) DEFAULT NULL,
+          "DiscountValue" DECIMAL(18,2) DEFAULT 0.00,
+          "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "VATAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "TotalAmount" DECIMAL(18,2) NOT NULL,
+          "PaymentTypeID" INT,
+          "AmountPaid" DECIMAL(18,2) NOT NULL,
+          "ChangeAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "Notes" VARCHAR(500),
+          "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("PaymentTypeID") REFERENCES "PaymentTypes"("PaymentTypeID")
         )
       `);
     } catch (error) {
-      if (!error.message.includes('already exists')) {
-        console.error('Error creating Sales table:', error.message);
-      }
+      console.error('Error creating Sales table:', error.message);
     }
     
     // Add discount columns to Sales table if they don't exist
     try {
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Sales]') AND name = 'DiscountType')
-        ALTER TABLE Sales ADD DiscountType NVARCHAR(20) DEFAULT NULL
+      const salesColumns = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'Sales' AND column_name = 'DiscountType'
       `);
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Sales]') AND name = 'DiscountValue')
-        ALTER TABLE Sales ADD DiscountValue DECIMAL(18,2) DEFAULT 0.00
+      if (salesColumns.rows.length === 0) {
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountType" VARCHAR(20) DEFAULT NULL');
+      }
+      
+      const discountValueCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'Sales' AND column_name = 'DiscountValue'
       `);
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Sales]') AND name = 'DiscountAmount')
-        ALTER TABLE Sales ADD DiscountAmount DECIMAL(18,2) DEFAULT 0.00
+      if (discountValueCheck.rows.length === 0) {
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountValue" DECIMAL(18,2) DEFAULT 0.00');
+      }
+      
+      const discountAmountCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'Sales' AND column_name = 'DiscountAmount'
       `);
+      if (discountAmountCheck.rows.length === 0) {
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00');
+      }
     } catch (error) {
       console.error('Error adding discount columns to Sales:', error.message);
     }
     
     // Create SaleItems Table
     try {
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SaleItems]') AND type in (N'U'))
-        CREATE TABLE SaleItems (
-          SaleItemID INT PRIMARY KEY IDENTITY(1,1),
-          SaleID INT NOT NULL,
-          ProductID INT NOT NULL,
-          ProductName NVARCHAR(200) NOT NULL,
-          Barcode NVARCHAR(100),
-          Quantity INT NOT NULL,
-          UnitPrice DECIMAL(18,2) NOT NULL,
-          DiscountType NVARCHAR(20) DEFAULT NULL,
-          DiscountValue DECIMAL(18,2) DEFAULT 0.00,
-          DiscountAmount DECIMAL(18,2) DEFAULT 0.00,
-          IsVAT BIT DEFAULT 1,
-          VATRate DECIMAL(5,2) DEFAULT 0.00,
-          ExcludeVAT BIT DEFAULT 0,
-          LineTotal DECIMAL(18,2) NOT NULL,
-          FOREIGN KEY (SaleID) REFERENCES Sales(SaleID) ON DELETE CASCADE,
-          FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS "SaleItems" (
+          "SaleItemID" SERIAL PRIMARY KEY,
+          "SaleID" INT NOT NULL,
+          "ProductID" INT NOT NULL,
+          "ProductName" VARCHAR(200) NOT NULL,
+          "Barcode" VARCHAR(100),
+          "Quantity" INT NOT NULL,
+          "UnitPrice" DECIMAL(18,2) NOT NULL,
+          "DiscountType" VARCHAR(20) DEFAULT NULL,
+          "DiscountValue" DECIMAL(18,2) DEFAULT 0.00,
+          "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "IsVAT" BOOLEAN DEFAULT true,
+          "VATRate" DECIMAL(5,2) DEFAULT 0.00,
+          "ExcludeVAT" BOOLEAN DEFAULT false,
+          "LineTotal" DECIMAL(18,2) NOT NULL,
+          FOREIGN KEY ("SaleID") REFERENCES "Sales"("SaleID") ON DELETE CASCADE,
+          FOREIGN KEY ("ProductID") REFERENCES "Products"("ProductID")
         )
       `);
     } catch (error) {
-      if (!error.message.includes('already exists')) {
-        console.error('Error creating SaleItems table:', error.message);
-      }
+      console.error('Error creating SaleItems table:', error.message);
     }
     
     // Add discount columns to SaleItems table if they don't exist
     try {
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleItems]') AND name = 'DiscountType')
-        ALTER TABLE SaleItems ADD DiscountType NVARCHAR(20) DEFAULT NULL
+      const saleItemsColumns = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'SaleItems' AND column_name = 'DiscountType'
       `);
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleItems]') AND name = 'DiscountValue')
-        ALTER TABLE SaleItems ADD DiscountValue DECIMAL(18,2) DEFAULT 0.00
+      if (saleItemsColumns.rows.length === 0) {
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountType" VARCHAR(20) DEFAULT NULL');
+      }
+      
+      const saleItemsDiscountValue = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'SaleItems' AND column_name = 'DiscountValue'
       `);
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleItems]') AND name = 'DiscountAmount')
-        ALTER TABLE SaleItems ADD DiscountAmount DECIMAL(18,2) DEFAULT 0.00
+      if (saleItemsDiscountValue.rows.length === 0) {
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountValue" DECIMAL(18,2) DEFAULT 0.00');
+      }
+      
+      const saleItemsDiscountAmount = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'SaleItems' AND column_name = 'DiscountAmount'
       `);
-      await request.query(`
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[SaleItems]') AND name = 'ExcludeVAT')
-        ALTER TABLE SaleItems ADD ExcludeVAT BIT DEFAULT 0
+      if (saleItemsDiscountAmount.rows.length === 0) {
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00');
+      }
+      
+      const excludeVATCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'SaleItems' AND column_name = 'ExcludeVAT'
       `);
+      if (excludeVATCheck.rows.length === 0) {
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "ExcludeVAT" BOOLEAN DEFAULT false');
+      }
     } catch (error) {
       console.error('Error adding discount columns to SaleItems:', error.message);
     }
     
     // Insert Default Payment Types
     try {
-      const paymentCheck = await request.query('SELECT COUNT(*) as count FROM PaymentTypes');
-      if (paymentCheck.recordset[0].count === 0) {
-        await request.query(`
-          INSERT INTO PaymentTypes (PaymentName, Description) VALUES
+      const paymentCheck = await pool.query('SELECT COUNT(*) as count FROM "PaymentTypes"');
+      if (parseInt(paymentCheck.rows[0].count) === 0) {
+        await pool.query(`
+          INSERT INTO "PaymentTypes" ("PaymentName", "Description") VALUES
           ('Cash', 'Cash payment'),
           ('Juice', 'Juice payment')
         `);
@@ -182,10 +197,10 @@ export const initializeDatabase = async () => {
     
     // Insert Sample Category
     try {
-      const categoryCheck = await request.query('SELECT COUNT(*) as count FROM Categories');
-      if (categoryCheck.recordset[0].count === 0) {
-        await request.query(`
-          INSERT INTO Categories (CategoryName, Description) VALUES
+      const categoryCheck = await pool.query('SELECT COUNT(*) as count FROM "Categories"');
+      if (parseInt(categoryCheck.rows[0].count) === 0) {
+        await pool.query(`
+          INSERT INTO "Categories" ("CategoryName", "Description") VALUES
           ('General', 'General products')
         `);
       }
