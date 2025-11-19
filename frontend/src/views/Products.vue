@@ -68,7 +68,7 @@
           <div class="form-row">
             <div class="form-group">
               <label>Barcode</label>
-              <input v-model="formData.Barcode" type="text" class="input" />
+              <input v-model="formData.Barcode" type="text" class="input" required/>
             </div>
             <div class="form-group">
               <label>SKU</label>
@@ -94,8 +94,8 @@
               <label>Category</label>
               <select v-model.number="formData.CategoryID" class="input">
                 <option :value="null">Select Category</option>
-                <option v-for="cat in categories" :key="cat.CategoryID" :value="cat.CategoryID">
-                  {{ cat.CategoryName }}
+                <option v-for="cat in categories" :key="cat.CategoryID" :value="cat.Description">
+                  {{ cat.Description }}
                 </option>
               </select>
             </div>
@@ -190,6 +190,7 @@ export default {
       try {
         const response = await categoriesAPI.getAll()
         this.categories = response.data
+        console.log(this.categories)
       } catch (error) {
         console.error(error)
       }

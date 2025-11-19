@@ -201,7 +201,9 @@ export const initializeDatabase = async () => {
       if (parseInt(categoryCheck.rows[0].count) === 0) {
         await pool.query(`
           INSERT INTO "Categories" ("CategoryName", "Description") VALUES
-          ('General', 'General products')
+          ('General', 'General products'),
+          ('kitchen', 'Litchen products'),
+          ('Wedding', 'Wedding products')
         `);
       }
     } catch (error) {

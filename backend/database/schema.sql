@@ -84,6 +84,7 @@ ON CONFLICT DO NOTHING;
 -- Insert Sample Category
 INSERT INTO "Categories" ("CategoryName", "Description") VALUES
 ('General', 'General products'),
+('kitchen', 'Litchen products'),
 ('Wedding', 'Wedding products')
 ON CONFLICT DO NOTHING;
 
