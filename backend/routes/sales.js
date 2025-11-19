@@ -271,12 +271,6 @@ router.post('/', async (req, res) => {
         lineTotal
       ]);
       
-      // Update stock quantity
-      await client.query(`
-        UPDATE Products 
-        SET StockQuantity = StockQuantity - $1
-        WHERE ProductID = $2
-      `, [item.quantity, item.productID]);
     }
     
     await client.query('COMMIT');

@@ -393,7 +393,9 @@ export default {
     setDefaultDates() {
       const today = new Date()
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-      this.filters.endDate = today.toISOString().split('T')[0]
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      this.filters.endDate = tomorrow.toISOString().split('T')[0]
       this.filters.startDate = firstDay.toISOString().split('T')[0]
     },
     async loadReports() {

@@ -22,7 +22,7 @@ This document walks through preparing the environment, configuring PostgreSQL, a
 2. Connect with a user that can create databases (typically `postgres`).
 3. Create the POS database:
    ```sql
-   CREATE DATABASE POS_DB;
+   CREATE DATABASE "POS_DB";
    ```
 4. Ensure the user you will use from Node.js has appropriate rights on `POS_DB` (or ability to create tables).
 

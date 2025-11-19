@@ -7,11 +7,11 @@ export const initializeDatabase = async () => {
     // Create Categories Table
     try {
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS Categories (
-          CategoryID SERIAL PRIMARY KEY,
-          CategoryName VARCHAR(100) NOT NULL,
-          Description VARCHAR(255),
-          CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        CREATE TABLE IF NOT EXISTS "Categories" (
+          "CategoryID" SERIAL PRIMARY KEY,
+          "CategoryName" VARCHAR(100) NOT NULL,
+          "Description" VARCHAR(255),
+          "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
     } catch (error) {
@@ -21,23 +21,22 @@ export const initializeDatabase = async () => {
     // Create Products Table
     try {
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS Products (
-          ProductID SERIAL PRIMARY KEY,
-          ProductName VARCHAR(200) NOT NULL,
-          Barcode VARCHAR(100) UNIQUE,
-          SKU VARCHAR(50),
-          Description VARCHAR(500),
-          Price DECIMAL(18,2) NOT NULL,
-          Cost DECIMAL(18,2),
-          IsVAT BOOLEAN DEFAULT true,
-          VATRate DECIMAL(5,2) DEFAULT 0.00,
-          CategoryID INT,
-          ImageBase64 TEXT,
-          StockQuantity INT DEFAULT 0,
-          IsActive BOOLEAN DEFAULT true,
-          CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (CategoryID) REFERENCES Categories(CategoryID)
+        CREATE TABLE IF NOT EXISTS "Products" (
+          "ProductID" SERIAL PRIMARY KEY,
+          "ProductName" VARCHAR(200) NOT NULL,
+          "Barcode" VARCHAR(100) UNIQUE,
+          "SKU" VARCHAR(50),
+          "Description" VARCHAR(500),
+          "Price" DECIMAL(18,2) NOT NULL,
+          "Cost" DECIMAL(18,2),
+          "IsVAT" BOOLEAN DEFAULT true,
+          "VATRate" DECIMAL(5,2) DEFAULT 0.00,
+          "CategoryID" INT,
+          "ImageBase64" TEXT,
+          "IsActive" BOOLEAN DEFAULT true,
+          "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "UpdatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("CategoryID") REFERENCES "Categories"("CategoryID")
         )
       `);
     } catch (error) {
@@ -47,11 +46,11 @@ export const initializeDatabase = async () => {
     // Create PaymentTypes Table
     try {
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS PaymentTypes (
-          PaymentTypeID SERIAL PRIMARY KEY,
-          PaymentName VARCHAR(50) NOT NULL,
-          Description VARCHAR(255),
-          IsActive BOOLEAN DEFAULT true
+        CREATE TABLE IF NOT EXISTS "PaymentTypes" (
+          "PaymentTypeID" SERIAL PRIMARY KEY,
+          "PaymentName" VARCHAR(50) NOT NULL,
+          "Description" VARCHAR(255),
+          "IsActive" BOOLEAN DEFAULT true
         )
       `);
     } catch (error) {
@@ -61,22 +60,22 @@ export const initializeDatabase = async () => {
     // Create Sales Table
     try {
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS Sales (
-          SaleID SERIAL PRIMARY KEY,
-          SaleNumber VARCHAR(50) UNIQUE NOT NULL,
-          SaleDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          SubTotal DECIMAL(18,2) NOT NULL,
-          DiscountType VARCHAR(20) DEFAULT NULL,
-          DiscountValue DECIMAL(18,2) DEFAULT 0.00,
-          DiscountAmount DECIMAL(18,2) DEFAULT 0.00,
-          VATAmount DECIMAL(18,2) DEFAULT 0.00,
-          TotalAmount DECIMAL(18,2) NOT NULL,
-          PaymentTypeID INT,
-          AmountPaid DECIMAL(18,2) NOT NULL,
-          ChangeAmount DECIMAL(18,2) DEFAULT 0.00,
-          Notes VARCHAR(500),
-          CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (PaymentTypeID) REFERENCES PaymentTypes(PaymentTypeID)
+        CREATE TABLE IF NOT EXISTS "Sales" (
+          "SaleID" SERIAL PRIMARY KEY,
+          "SaleNumber" VARCHAR(50) UNIQUE NOT NULL,
+          "SaleDate" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "SubTotal" DECIMAL(18,2) NOT NULL,
+          "DiscountType" VARCHAR(20) DEFAULT NULL,
+          "DiscountValue" DECIMAL(18,2) DEFAULT 0.00,
+          "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "VATAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "TotalAmount" DECIMAL(18,2) NOT NULL,
+          "PaymentTypeID" INT,
+          "AmountPaid" DECIMAL(18,2) NOT NULL,
+          "ChangeAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "Notes" VARCHAR(500),
+          "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY ("PaymentTypeID") REFERENCES "PaymentTypes"("PaymentTypeID")
         )
       `);
     } catch (error) {
@@ -88,28 +87,28 @@ export const initializeDatabase = async () => {
       const salesColumns = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'sales' AND column_name = 'discounttype'
+        WHERE table_name = 'Sales' AND column_name = 'DiscountType'
       `);
       if (salesColumns.rows.length === 0) {
-        await pool.query('ALTER TABLE Sales ADD COLUMN DiscountType VARCHAR(20) DEFAULT NULL');
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountType" VARCHAR(20) DEFAULT NULL');
       }
       
       const discountValueCheck = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'sales' AND column_name = 'discountvalue'
+        WHERE table_name = 'Sales' AND column_name = 'DiscountValue'
       `);
       if (discountValueCheck.rows.length === 0) {
-        await pool.query('ALTER TABLE Sales ADD COLUMN DiscountValue DECIMAL(18,2) DEFAULT 0.00');
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountValue" DECIMAL(18,2) DEFAULT 0.00');
       }
       
       const discountAmountCheck = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'sales' AND column_name = 'discountamount'
+        WHERE table_name = 'Sales' AND column_name = 'DiscountAmount'
       `);
       if (discountAmountCheck.rows.length === 0) {
-        await pool.query('ALTER TABLE Sales ADD COLUMN DiscountAmount DECIMAL(18,2) DEFAULT 0.00');
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00');
       }
     } catch (error) {
       console.error('Error adding discount columns to Sales:', error.message);
@@ -118,23 +117,23 @@ export const initializeDatabase = async () => {
     // Create SaleItems Table
     try {
       await pool.query(`
-        CREATE TABLE IF NOT EXISTS SaleItems (
-          SaleItemID SERIAL PRIMARY KEY,
-          SaleID INT NOT NULL,
-          ProductID INT NOT NULL,
-          ProductName VARCHAR(200) NOT NULL,
-          Barcode VARCHAR(100),
-          Quantity INT NOT NULL,
-          UnitPrice DECIMAL(18,2) NOT NULL,
-          DiscountType VARCHAR(20) DEFAULT NULL,
-          DiscountValue DECIMAL(18,2) DEFAULT 0.00,
-          DiscountAmount DECIMAL(18,2) DEFAULT 0.00,
-          IsVAT BOOLEAN DEFAULT true,
-          VATRate DECIMAL(5,2) DEFAULT 0.00,
-          ExcludeVAT BOOLEAN DEFAULT false,
-          LineTotal DECIMAL(18,2) NOT NULL,
-          FOREIGN KEY (SaleID) REFERENCES Sales(SaleID) ON DELETE CASCADE,
-          FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+        CREATE TABLE IF NOT EXISTS "SaleItems" (
+          "SaleItemID" SERIAL PRIMARY KEY,
+          "SaleID" INT NOT NULL,
+          "ProductID" INT NOT NULL,
+          "ProductName" VARCHAR(200) NOT NULL,
+          "Barcode" VARCHAR(100),
+          "Quantity" INT NOT NULL,
+          "UnitPrice" DECIMAL(18,2) NOT NULL,
+          "DiscountType" VARCHAR(20) DEFAULT NULL,
+          "DiscountValue" DECIMAL(18,2) DEFAULT 0.00,
+          "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00,
+          "IsVAT" BOOLEAN DEFAULT true,
+          "VATRate" DECIMAL(5,2) DEFAULT 0.00,
+          "ExcludeVAT" BOOLEAN DEFAULT false,
+          "LineTotal" DECIMAL(18,2) NOT NULL,
+          FOREIGN KEY ("SaleID") REFERENCES "Sales"("SaleID") ON DELETE CASCADE,
+          FOREIGN KEY ("ProductID") REFERENCES "Products"("ProductID")
         )
       `);
     } catch (error) {
@@ -146,37 +145,37 @@ export const initializeDatabase = async () => {
       const saleItemsColumns = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'saleitems' AND column_name = 'discounttype'
+        WHERE table_name = 'SaleItems' AND column_name = 'DiscountType'
       `);
       if (saleItemsColumns.rows.length === 0) {
-        await pool.query('ALTER TABLE SaleItems ADD COLUMN DiscountType VARCHAR(20) DEFAULT NULL');
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountType" VARCHAR(20) DEFAULT NULL');
       }
       
       const saleItemsDiscountValue = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'saleitems' AND column_name = 'discountvalue'
+        WHERE table_name = 'SaleItems' AND column_name = 'DiscountValue'
       `);
       if (saleItemsDiscountValue.rows.length === 0) {
-        await pool.query('ALTER TABLE SaleItems ADD COLUMN DiscountValue DECIMAL(18,2) DEFAULT 0.00');
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountValue" DECIMAL(18,2) DEFAULT 0.00');
       }
       
       const saleItemsDiscountAmount = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'saleitems' AND column_name = 'discountamount'
+        WHERE table_name = 'SaleItems' AND column_name = 'DiscountAmount'
       `);
       if (saleItemsDiscountAmount.rows.length === 0) {
-        await pool.query('ALTER TABLE SaleItems ADD COLUMN DiscountAmount DECIMAL(18,2) DEFAULT 0.00');
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "DiscountAmount" DECIMAL(18,2) DEFAULT 0.00');
       }
       
       const excludeVATCheck = await pool.query(`
         SELECT column_name 
         FROM information_schema.columns 
-        WHERE table_name = 'saleitems' AND column_name = 'excludevat'
+        WHERE table_name = 'SaleItems' AND column_name = 'ExcludeVAT'
       `);
       if (excludeVATCheck.rows.length === 0) {
-        await pool.query('ALTER TABLE SaleItems ADD COLUMN ExcludeVAT BOOLEAN DEFAULT false');
+        await pool.query('ALTER TABLE "SaleItems" ADD COLUMN "ExcludeVAT" BOOLEAN DEFAULT false');
       }
     } catch (error) {
       console.error('Error adding discount columns to SaleItems:', error.message);
@@ -184,10 +183,10 @@ export const initializeDatabase = async () => {
     
     // Insert Default Payment Types
     try {
-      const paymentCheck = await pool.query('SELECT COUNT(*) as count FROM PaymentTypes');
+      const paymentCheck = await pool.query('SELECT COUNT(*) as count FROM "PaymentTypes"');
       if (parseInt(paymentCheck.rows[0].count) === 0) {
         await pool.query(`
-          INSERT INTO PaymentTypes (PaymentName, Description) VALUES
+          INSERT INTO "PaymentTypes" ("PaymentName", "Description") VALUES
           ('Cash', 'Cash payment'),
           ('Juice', 'Juice payment')
         `);
@@ -198,10 +197,10 @@ export const initializeDatabase = async () => {
     
     // Insert Sample Category
     try {
-      const categoryCheck = await pool.query('SELECT COUNT(*) as count FROM Categories');
+      const categoryCheck = await pool.query('SELECT COUNT(*) as count FROM "Categories"');
       if (parseInt(categoryCheck.rows[0].count) === 0) {
         await pool.query(`
-          INSERT INTO Categories (CategoryName, Description) VALUES
+          INSERT INTO "Categories" ("CategoryName", "Description") VALUES
           ('General', 'General products')
         `);
       }

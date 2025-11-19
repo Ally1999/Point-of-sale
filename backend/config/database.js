@@ -1,14 +1,16 @@
 import pkg from 'pg';
 import dotenv from 'dotenv';
 
-const { Pool } = pkg;
+const {
+  Pool
+} = pkg;
 dotenv.config();
 
 const config = {
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_DATABASE || 'POS_DB',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  password: process.env.DB_PASSWORD || '123',
   port: parseInt(process.env.DB_PORT || '5432'),
   max: 20,
   idleTimeoutMillis: 30000,
@@ -47,4 +49,3 @@ export const closeConnection = async () => {
 };
 
 export default pool;
-

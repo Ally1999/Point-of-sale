@@ -23,7 +23,6 @@
             <th>Barcode</th>
             <th>Price</th>
             <th>VAT</th>
-            <th>Stock</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -45,7 +44,6 @@
               <span v-if="product.IsVAT" class="vat-badge">VAT {{ product.VATRate }}%</span>
               <span v-else class="non-vat-badge">Non-VAT</span>
             </td>
-            <td>{{ product.StockQuantity }}</td>
             <td>
               <button @click="openEditModal(product)" class="btn btn-secondary" style="margin-right: 5px;">Edit</button>
               <button @click="deleteProduct(product.ProductID)" class="btn btn-danger">Delete</button>
@@ -100,10 +98,6 @@
                   {{ cat.CategoryName }}
                 </option>
               </select>
-            </div>
-            <div class="form-group">
-              <label>Stock Quantity</label>
-              <input v-model.number="formData.StockQuantity" type="number" class="input" />
             </div>
           </div>
           <div class="form-row">
@@ -161,7 +155,6 @@ export default {
         Price: 0,
         Cost: 0,
         CategoryID: null,
-        StockQuantity: 0,
         IsVAT: true,
         VATRate: 15.00,
         ImageBase64: null
@@ -216,7 +209,6 @@ export default {
         Price: product.Price,
         Cost: product.Cost || 0,
         CategoryID: product.CategoryID,
-        StockQuantity: product.StockQuantity || 0,
         IsVAT: product.IsVAT === true || product.IsVAT === 1,
         VATRate: product.VATRate || 15.00,
         ImageBase64: product.ImageBase64 || null
@@ -237,7 +229,6 @@ export default {
         Price: 0,
         Cost: 0,
         CategoryID: null,
-        StockQuantity: 0,
         IsVAT: true,
         VATRate: 15.00,
         ImageBase64: null
@@ -263,7 +254,6 @@ export default {
         const data = {
           ...this.formData,
           CategoryID: this.formData.CategoryID || null,
-          StockQuantity: this.formData.StockQuantity || 0,
           ImageBase64: this.formData.ImageBase64 || null
         }
 

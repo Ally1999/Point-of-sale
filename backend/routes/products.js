@@ -68,13 +68,13 @@ router.get('/barcode/:barcode', async (req, res) => {
 // Create product
 router.post('/', async (req, res) => {
   try {
-    const { ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, StockQuantity, ImageBase64 } = req.body;
+    const { ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, ImageBase64 } = req.body;
     const imageBase64 = ImageBase64 && ImageBase64.trim() !== '' ? ImageBase64.trim() : null;
     
     const pool = await getConnection();
     const result = await pool.query(`
-      INSERT INTO Products (ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, ImageBase64, StockQuantity)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO Products (ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, ImageBase64)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `, [
       ProductName,
@@ -86,8 +86,7 @@ router.post('/', async (req, res) => {
       IsVAT === 'true' || IsVAT === true,
       VATRate ? parseFloat(VATRate) : 0.00,
       CategoryID || null,
-      imageBase64,
-      StockQuantity ? parseInt(StockQuantity) : 0
+      imageBase64
     ]);
     
     res.status(201).json(result.rows[0]);
@@ -100,7 +99,7 @@ router.post('/', async (req, res) => {
 // Update product
 router.put('/:id', async (req, res) => {
   try {
-    const { ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, StockQuantity, ImageBase64 } = req.body;
+    const { ProductName, Barcode, SKU, Description, Price, Cost, IsVAT, VATRate, CategoryID, ImageBase64 } = req.body;
     
     // Get existing product to check for existing image
     const pool = await getConnection();
@@ -127,9 +126,8 @@ router.put('/:id', async (req, res) => {
           VATRate = $8,
           CategoryID = $9,
           ImageBase64 = $10,
-          StockQuantity = $11,
           UpdatedAt = CURRENT_TIMESTAMP
-      WHERE ProductID = $12
+      WHERE ProductID = $11
       RETURNING *
     `, [
       ProductName,
@@ -142,7 +140,6 @@ router.put('/:id', async (req, res) => {
       VATRate ? parseFloat(VATRate) : 0.00,
       CategoryID || null,
       imageBase64,
-      StockQuantity ? parseInt(StockQuantity) : 0,
       req.params.id
     ]);
     
@@ -160,8 +157,21 @@ router.put('/:id', async (req, res) => {
 // Delete product (soft delete)
 router.delete('/:id', async (req, res) => {
   try {
+    const productId = Number.parseInt(req.params.id, 10);
+
+    if (!Number.isInteger(productId)) {
+      return res.status(400).json({ error: 'A valid product id is required' });
+    }
+
     const pool = await getConnection();
-    await pool.query('UPDATE Products SET IsActive = false WHERE ProductID = $1', [req.params.id]);
+    const result = await pool.query(
+      'UPDATE Products SET IsActive = false, UpdatedAt = CURRENT_TIMESTAMP WHERE ProductID = $1 RETURNING ProductID',
+      [productId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
     
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
