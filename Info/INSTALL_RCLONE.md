@@ -22,9 +22,9 @@
    - Close and reopen your terminal/PowerShell
    - Run: `rclone version`
 
-## Option 2: Using the Installation Script (Requires Admin)
+# Option 2: Using the installation script (requires admin)
 
-1. Right-click `install-rclone.ps1`
+1. From the repository root (`Point-of-sale/`), right-click `install-rclone.ps1`
 2. Select "Run with PowerShell" (or "Run as Administrator")
 3. Follow the prompts
 4. Close and reopen your terminal
@@ -45,8 +45,20 @@ scoop install rclone
 ## After Installation
 
 1. **Close and reopen your terminal** (important for PATH to update)
-2. Verify with: `rclone version`
-3. Configure your cloud storage: `rclone config`
+2. Verify rclone is accessible:
+   ```powershell
+   rclone version
+   ```
+3. Configure a remote (OneDrive, Google Drive, etc.):
+   ```powershell
+   rclone config
+   ```
+4. Confirm it exists:
+   ```powershell
+   rclone listremotes
+   # Expected output: drive:, onedrive:, dropbox:, ...
+   ```
+5. Match that name (including the trailing `:`) in `cloud-backup.config.js`.
 
 ## Troubleshooting
 
@@ -54,4 +66,6 @@ If `rclone` is still not recognized after adding to PATH:
 - Make sure you closed and reopened your terminal
 - Check the PATH: `$env:Path` (should include your rclone folder)
 - Try the full path: `C:\rclone\rclone.exe version`
+
+Need platform-specific help? See https://rclone.org/docs/ or follow the links in `Info/CLOUD_BACKUP_README.md`.
 

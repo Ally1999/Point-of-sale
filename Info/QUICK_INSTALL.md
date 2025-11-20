@@ -1,77 +1,89 @@
+# Quick Install
 
-# Quick rclone Installation Guide
+Use this checklist when you just need the Point-of-sale stack up and running fast (frontend, backend, and the optional rclone backup helper).
 
-## The Issue
-Your backup script needs rclone, but it's not installed yet. I've fixed the module warning in `package.json`, but you still need to install rclone.
+---
 
-## Easiest Method: Manual Download (5 minutes)
+## 1. Requirements
 
-### Step 1: Download
-1. Open your browser
-2. Go to: **https://rclone.org/downloads/**
-3. Click on **"Windows 64-bit"** (the ZIP file link)
-4. Save it to your Downloads folder
+| Tool | Min Version | Notes |
+| --- | --- | --- |
+| Node.js | 18.x | Ships with npm 9+ |
+| PostgreSQL | 12+ | Any edition works |
+| Git | Latest | Optional but recommended |
+| rclone | Latest | Only required if you want cloud backups |
 
-### Step 2: Extract
-1. Right-click the downloaded ZIP file
-2. Select "Extract All..."
-3. Extract to: `C:\rclone` (create this folder if needed)
-4. You should have `C:\rclone\rclone.exe` after extraction
+---
 
-### Step 3: Add to PATH
-1. Press `Win + R`
-2. Type: `sysdm.cpl` and press Enter
-3. Click **"Advanced"** tab
-4. Click **"Environment Variables"**
-5. Under **"User variables"**, find **"Path"** and click **"Edit"**
-6. Click **"New"**
-7. Type: `C:\rclone`
-8. Click **OK** on all dialogs
+## 2. Clone & Install
 
-### Step 4: Verify
-1. **Close this terminal/PowerShell completely**
-2. **Open a new terminal/PowerShell**
-3. Run: `rclone version`
-
-You should see rclone version information. If you see an error, make sure you:
-- Closed and reopened the terminal
-- Used the correct path in Step 3
-
-## After Installation
-
-Once rclone is installed:
-
-1. **Configure your cloud storage:**
-   ```bash
-   rclone config
-   ```
-   - Follow the prompts to set up OneDrive, Google Drive, iCloud, etc.
-   - When asked for a name, use something like `onedrive` or `gdrive`
-
-2. **Update your config file:**
-   - Edit `cloud-backup.config.js`
-   - Set `rcloneRemote` to match your configured remote (e.g., `"onedrive:"`)
-
-3. **Test the backup:**
-   ```bash
-   npm run backup:once
-   ```
-
-## Alternative: Use Scoop (if installed)
-
-If you have Scoop package manager:
-```powershell
-scoop install rclone
-```
-
-## Alternative: Use Chocolatey (if installed)
-
-If you have Chocolatey:
-```powershell
-choco install rclone
+```bash
+git clone https://github.com/Ally1999/Point-of-sale.git
+cd Point-of-sale
+npm run install:all          # installs root, backend, frontend deps
 ```
 
 ---
 
-**Note:** The module type warning has been fixed. Once rclone is installed, your backup script will work perfectly!
+## 3. Configure the Backend
+
+```bash
+cd backend
+cp .env.example .env   # if needed
+```
+
+Edit `.env` with your PostgreSQL settings:
+
+```ini
+DB_HOST=localhost
+DB_DATABASE=POS_DB
+DB_USER=postgres
+DB_PASSWORD=YourPassword
+DB_PORT=5432
+```
+
+> First boot auto-creates tables, payment types, and the default category. Ensure the DB user can create/alter tables.
+
+---
+
+## 4. Start Developing
+
+```bash
+# top-level runner (frontend + backend + backup scheduler)
+npm run dev
+```
+
+- Frontend: http://localhost:5173  
+- Backend API: http://localhost:3000  
+- Backup scheduler: runs `node cloud-backup.js` alongside dev servers (requires rclone)
+
+Prefer split terminals? Run `npm run dev:backend`, `npm run dev:frontend`, and `npm run backup` separately.
+
+---
+
+## 5. Verify the App
+
+1. Visit http://localhost:5173.
+2. Create a product in **Products** (optional image uploads are stored as Base64).
+3. Sell it through **POS**; apply line or cart discounts.
+4. Confirm the sale in **Sales** and print a receipt.
+
+---
+
+## 6. (Optional) Enable Cloud Backups
+
+1. Install rclone (see `Info/INSTALL_RCLONE.md` or run `install-rclone.ps1`).
+2. Configure a remote: `rclone config` (e.g., `drive`, `onedrive`, etc.).
+3. Update `cloud-backup.config.js` with:
+   - `rcloneRemote`
+   - `localFolder`
+   - `cloudFolder`
+   - `maxFilesToKeep` / `daysToKeep` (retention policy)
+4. Test once: `npm run backup:once`
+
+Once configured, `npm run dev` keeps the scheduler alive so new files land in the cloud automatically.
+
+---
+
+You're ready to work. For more detail, see `Info/SETUP.md` (full guide) and `Info/CLOUD_BACKUP_README.md` (backup deep dive).
 

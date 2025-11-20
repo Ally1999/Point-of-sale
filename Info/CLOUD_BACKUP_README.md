@@ -1,252 +1,153 @@
 # Cloud Backup Script
 
-A free, automated cloud backup solution using rclone that syncs your local files to cloud storage (OneDrive, Google Drive, iCloud, etc.) and automatically manages old files.
+A free, automated cloud backup helper for this POS project. It uses rclone to copy local files (e.g., daily exports, DB dumps, receipt PDFs) to the cloud on a schedule, and keeps the backup directory tidy.
+
+---
 
 ## Features
 
-✅ **Checks files** - Compares local files with cloud storage  
-✅ **Copies missing files** - Automatically uploads new files  
-✅ **Runs daily at 1pm** - Scheduled automatic backups  
-✅ **Smart cleanup** - Deletes files older than 7 days, but always keeps at least 7 files  
-✅ **Uses rclone** - Free, open-source tool for cloud storage  
-✅ **100% Free** - Works with personal accounts, no paid services required  
+- **One command** – `npm run dev` now runs the frontend, backend, and backup scheduler together.
+- **Incremental uploads** – Only files missing in the cloud get copied (name + size comparison).
+- **Retention policy** – Keep the newest `maxFilesToKeep` files (default 7) and optionally delete anything older than `daysToKeep` days.
+- **rclone powered** – Works with Google Drive, OneDrive, Dropbox, iCloud, S3-compatible providers, etc.
+- **Cross-platform** – Node.js 18+ script tested on Windows, macOS, and Linux.
+
+---
 
 ## Prerequisites
 
-1. **Node.js** (v14 or higher) - Already installed in your project
-2. **rclone** - Free command-line tool for cloud storage
+1. **Node.js 18+** – already required for the POS stack.
+2. **rclone** – install via:
+   - Windows: run `install-rclone.ps1`, or download from https://rclone.org/downloads/
+   - macOS: `brew install rclone`
+   - Linux: `sudo apt install rclone` (or the equivalent for your distro)
+3. **Configured remote** – run `rclone config` once and create a remote such as `drive:` or `onedrive:`.
 
-## Installation
+Verify both tools:
 
-### Step 1: Install rclone
-
-**Windows (Easiest - Automated Script):**
-1. Right-click on `install-rclone.ps1` in this folder
-2. Select "Run with PowerShell" (may need to run as Administrator)
-3. The script will download and install rclone automatically
-4. Close and reopen your terminal after installation
-
-**Windows (Manual Methods):**
-1. Download from: https://rclone.org/downloads/
-   - Download the Windows 64-bit ZIP file
-   - Extract `rclone.exe` to a folder (e.g., `C:\Program Files\rclone`)
-   - Add that folder to your system PATH
-2. Or use Chocolatey: `choco install rclone` (requires Chocolatey)
-3. Or use Scoop: `scoop install rclone` (requires Scoop)
-4. Or use winget: `winget install Rclone.Rclone` (Windows 10/11)
-
-**macOS:**
 ```bash
-brew install rclone
-```
-
-**Linux:**
-```bash
-# Most distributions
-sudo apt install rclone
-# or
-sudo yum install rclone
-```
-
-Verify installation:
-```bash
+node -v
 rclone version
+rclone listremotes   # should list your remote name(s)
 ```
 
-### Step 2: Configure rclone Remote
+---
 
-Run the configuration wizard:
-```bash
-rclone config
-```
-
-**For OneDrive (Personal):**
-1. Choose `n` for new remote
-2. Name it `onedrive` (or any name you prefer)
-3. Select `onedrive` from the list
-4. Choose `onedrive` (not business)
-5. Follow the prompts to authenticate with your Microsoft account
-6. Leave other settings as default
-
-**For Google Drive (Personal):**
-1. Choose `n` for new remote
-2. Name it `gdrive` (or any name you prefer)
-3. Select `drive` from the list
-4. Follow the prompts to authenticate with your Google account
-5. Leave other settings as default
-
-**For iCloud Drive:**
-1. Choose `n` for new remote
-2. Name it `icloud` (or any name you prefer)
-3. Select `icloud` from the list
-4. Follow the prompts to authenticate with your Apple ID
-5. Leave other settings as default
-
-**For Dropbox:**
-1. Choose `n` for new remote
-2. Name it `dropbox` (or any name you prefer)
-3. Select `dropbox` from the list
-4. Follow the prompts to authenticate with your Dropbox account
-5. Leave other settings as default
-
-After configuration, verify your remote:
-```bash
-rclone listremotes
-```
-
-You should see your configured remote (e.g., `onedrive:`)
-
-### Step 3: Install Node.js Dependencies
-
-```bash
-npm install
-```
-
-This will install `node-cron` for scheduling.
-
-### Step 4: Configure the Backup Script
-
-Edit `cloud-backup.config.js`:
+## Configure `cloud-backup.config.js`
 
 ```javascript
 export default {
-  rcloneRemote: "onedrive:",  // Change to your remote name (e.g., "gdrive:", "icloud:")
-  localFolder: "C:\\Users\\YourUsername\\Documents\\BackupFolder",  // Your local folder path
-  cloudFolder: "Backups",  // Cloud folder name (or "" for root)
-  runOnStart: true,  // Run immediately when started
-  minFilesToKeep: 7,  // Always keep at least 7 files
-  daysToKeep: 7  // Delete files older than 7 days
+  rcloneRemote: "drive:",      // must match the name from `rclone config`
+  localFolder: "C:\\Codes\\backup", // absolute path to the folder you want to mirror
+  cloudFolder: "Backups/",     // remote path; "" uploads to the remote root
+  runOnStart: true,            // run immediately before scheduling
+  maxFilesToKeep: 7,           // keep the newest N files
+  daysToKeep: null             // set to a number (e.g., 14) to also delete by age
 };
 ```
 
-**Important:** Use absolute paths for `localFolder` on Windows (e.g., `C:\\Users\\...`)
+Tips:
+- Use double backslashes (`C:\\path\\to\\folder`) on Windows.
+- Leaving `cloudFolder` empty sends files to the remote root. With a value (e.g., `Backups/`), folders are created relative to the remote.
+- Set `daysToKeep` to `null` to disable age-based cleanup.
+
+---
 
 ## Usage
 
-### Run Once (Test)
+### During Development
 
-Test the backup without scheduling:
+Running the standard dev script launches everything (frontend, backend, backup scheduler):
+
 ```bash
+npm run dev
+```
+
+Prefer separate windows? Start them individually:
+
+```bash
+npm run dev:backend
+npm run dev:frontend
+npm run backup
+```
+
+### One-off Backup
+
+```bash
+npm run backup:once
+# or
 node cloud-backup.js --once
 ```
 
-### Run with Scheduler (Daily at 1pm)
+### Persistent Scheduler Only
 
-Start the script and it will run daily at 1:00 PM:
 ```bash
-node cloud-backup.js
+npm run backup
+# equivalent to `node cloud-backup.js`
 ```
 
-The script will:
-- Run immediately if `runOnStart: true`
-- Schedule daily runs at 1:00 PM
-- Keep running until you stop it (Ctrl+C)
+The scheduler:
+- Runs immediately if `runOnStart` is true.
+- Schedules a daily run at 13:00 (1 PM) server time.
+- Keeps running until you stop it (Ctrl+C) or the process exits.
 
-### Run as Windows Service (Optional)
+---
 
-To run automatically in the background on Windows, you can use:
+## How Retention Works
 
-1. **Task Scheduler** (Built-in Windows tool):
-   - Open Task Scheduler
-   - Create Basic Task
-   - Trigger: "When the computer starts"
-   - Action: "Start a program"
-   - Program: `node`
-   - Arguments: `C:\Codes\Point-of-sale\cloud-backup.js`
-   - Start in: `C:\Codes\Point-of-sale`
+1. **Filter eligible local files** – optional age filter (`daysToKeep`) + limit to the newest `maxFilesToKeep`.
+2. **Upload missing files** – compares by filename and size.
+3. **Cloud cleanup** – deletes files older than `daysToKeep` days, then trims the directory so only `maxFilesToKeep` newest files remain.
 
-2. **PM2** (Process Manager):
-   ```bash
-   npm install -g pm2
-   pm2 start cloud-backup.js --name cloud-backup
-   pm2 save
-   pm2 startup
-   ```
+This ensures you always have a fresh rolling window of backups without manual cleanup.
 
-## How It Works
+---
 
-1. **File Checking**: Compares local files with cloud files by name and size
-2. **Uploading**: Only uploads files that don't exist in cloud or have different sizes
-3. **Cleanup**: 
-   - Finds files older than 7 days
-   - Deletes them, but **always keeps at least 7 files**
-   - If deleting would leave fewer than 7 files, it keeps the newest files
+## Running as a Background Job (Optional)
+
+- **Windows Task Scheduler** – point it at `node` with arguments `cloud-backup.js` and set the working directory to the repo root.
+- **PM2**:
+  ```bash
+  npm install -g pm2
+  pm2 start cloud-backup.js --name cloud-backup
+  pm2 save
+  pm2 startup
+  ```
+
+---
 
 ## Troubleshooting
 
-### "Rclone not found"
-- Make sure rclone is installed and in your PATH
-- On Windows, you may need to restart your terminal after installation
+| Symptom | Fix |
+| --- | --- |
+| `rclone: command not found` | Install rclone or reopen the terminal so PATH updates. |
+| `Remote "drive:" not found` | Run `rclone listremotes`, make sure the `rcloneRemote` value matches exactly (including the trailing `:`). |
+| Uploads create nested folders | Ensure `cloudFolder` does not contain duplicate slashes; the script normalizes paths but double-check configuration. |
+| Files never delete | Set `daysToKeep` to a positive number or reduce `maxFilesToKeep`. |
+| Permission denied | Run the shell with access to the local folder and confirm the remote account can write to the target directory. |
 
-### "Remote not found"
-- Run `rclone listremotes` to see configured remotes
-- Make sure the remote name in config matches (including the `:` at the end)
+To inspect the remote directly:
 
-### "Permission denied"
-- Check that you have read access to the local folder
-- Check that rclone has write access to your cloud storage
+```bash
+rclone lsjson drive:Backups
+rclone lsd drive:
+```
 
-### "Authentication failed"
-- Re-authenticate: `rclone config`
-- For OneDrive/Google Drive, you may need to re-authorize the app
-
-### Files not uploading
-- Check your internet connection
-- Verify the cloud folder path is correct
-- Check rclone logs: `rclone lsd yourremote:`
-
-## Testing Your Setup
-
-1. **Test rclone connection:**
-   ```bash
-   rclone lsd onedrive:  # Replace with your remote name
-   ```
-
-2. **Test file copy:**
-   ```bash
-   rclone copy "test.txt" "onedrive:Backups/"
-   ```
-
-3. **Test the script:**
-   ```bash
-   node cloud-backup.js --once
-   ```
+---
 
 ## Security Notes
 
-- rclone stores credentials in `%APPDATA%\rclone\rclone.conf` (Windows) or `~/.config/rclone/rclone.conf` (Linux/Mac)
-- This file is encrypted by default
-- Never share your rclone config file
-- The backup script only reads from your local folder and writes to cloud - it never deletes local files
+- rclone credentials live in `%APPDATA%\rclone\rclone.conf` (Windows) or `~/.config/rclone/rclone.conf` (macOS/Linux).
+- Do not commit this file or share it publicly.
+- The backup script only reads local files and writes to the remote; it never deletes local data.
 
-## Customization
+---
 
-### Change Schedule Time
+## Need Help?
 
-Edit `cloud-backup.js`, find this line:
-```javascript
-const schedule = '0 13 * * *';  // 1:00 PM daily
-```
+- rclone docs: https://rclone.org/docs/
+- General install tips: `Info/INSTALL_RCLONE.md`
+- Project-level questions: open an issue or ping the POS team.
 
-Cron format: `minute hour day month weekday`
-- `0 13 * * *` = 1:00 PM daily
-- `0 9 * * *` = 9:00 AM daily
-- `0 13 * * 1` = 1:00 PM every Monday
-
-### Change Retention Policy
-
-Edit `cloud-backup.config.js`:
-```javascript
-minFilesToKeep: 10,  // Keep at least 10 files
-daysToKeep: 14  // Keep files for 14 days
-```
-
-## Support
-
-For rclone issues, visit: https://rclone.org/docs/  
-For rclone configuration help: https://rclone.org/docs/#configure
-
-## License
-
-Free to use for personal and commercial purposes.
+Happy (and safe) backing up!
 

@@ -82,11 +82,29 @@ npm run dev          # http://localhost:5173
 npm run dev
 ```
 
+This starts the frontend, backend, and the cloud-backup scheduler simultaneously. Ensure rclone is installed/configured before using this option, or temporarily comment the backup command in `package.json`.
+
 Open your browser to **http://localhost:5173** once both services are running.
 
 ---
 
-## 6. First-Run Checklist
+## 6. Configure Cloud Backup (Optional)
+
+1. **Install rclone** – run `install-rclone.ps1` (Windows) or follow `Info/INSTALL_RCLONE.md`.
+2. **Configure a remote** – `rclone config` (e.g., `drive:`, `onedrive:`, `dropbox:`).
+3. **Edit `cloud-backup.config.js`:**
+   - `rcloneRemote`: name from step 2 (include the trailing colon).
+   - `localFolder`: absolute path to the folder you want to sync.
+   - `cloudFolder`: remote folder ("" writes to the root).
+   - `maxFilesToKeep` and `daysToKeep`: retention policy.
+4. **Test once:** `npm run backup:once`
+5. **Run alongside dev:** `npm run dev` (already includes the backup scheduler) or start it independently via `npm run backup`.
+
+> The scheduler uploads only new files and trims the remote directory to the newest `maxFilesToKeep` files, so it is safe to leave running indefinitely.
+
+---
+
+## 7. First-Run Checklist
 
 1. **Add a product** via the **Products** view. Upload an optional image—this will be saved as Base64 directly in PostgreSQL, no file storage required.
 2. **Test the POS flow:** scan or search for the product, add it to the cart, mark VAT exclusion if needed, and apply an amount discount per line.

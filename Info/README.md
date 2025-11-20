@@ -13,6 +13,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 - **VAT awareness** – Track VAT-inclusive pricing with per-line VAT exclusion toggles and clear receipt labelling.
 - **Payment flexibility** – Ships with default tenders and supports receipt regeneration and printing.
 - **Inventory tracking** – Sale completion automatically adjusts product stock.
+- **Cloud-safe backups** – Optional rclone helper uploads exported files on a schedule and enforces retention.
 
 ---
 
@@ -40,6 +41,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 - Node.js 18 or newer
 - npm 9+ (bundled with Node 18) or Yarn
 - PostgreSQL (12 or later) with a user that has database creation rights
+- rclone (optional) for the automated backup helper
 
 ---
 
@@ -63,16 +65,15 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
      DB_PORT=5432
      ```
 
-3. **Start the Servers**
+3. **Start Everything**
    ```bash
-   # backend (http://localhost:3000)
-   cd backend
-   npm run dev
-
-   # frontend (http://localhost:5173)
-   cd ../frontend
    npm run dev
    ```
+   - Frontend → http://localhost:5173  
+   - Backend API → http://localhost:3000  
+   - Cloud backup scheduler → runs automatically via `node cloud-backup.js`
+
+   > Don’t have rclone configured yet? Either install it (see `Info/INSTALL_RCLONE.md`) or run services separately with `npm run dev:backend`, `npm run dev:frontend`, and skip `npm run backup` for now.
 
 4. **Visit the App**
    Open `http://localhost:5173` in your browser.
@@ -187,7 +188,9 @@ Adjust defaults by editing `backend/database/init.js` before the first run, or u
 | Location | Command | Description |
 | --- | --- | --- |
 | root | `npm run install:all` | Install dependencies for root + services |
-| root | `npm run dev` | Run backend + frontend concurrently (if configured) |
+| root | `npm run dev` | Run frontend, backend, and cloud backup scheduler |
+| root | `npm run backup` | Start only the backup scheduler (`node cloud-backup.js`) |
+| root | `npm run backup:once` | Run a one-off backup for smoke tests |
 | backend | `npm run dev` | Start Express with file watcher |
 | backend | `npm start` | Start Express (production) |
 | frontend | `npm run dev` | Launch Vite dev server |
