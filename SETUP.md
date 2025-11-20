@@ -88,19 +88,52 @@ Open your browser to **http://localhost:5173** once both services are running.
 
 ---
 
-## 6. Configure Cloud Backup (Optional)
+## 6. Configure Backup Agents (Optional but Recommended)
 
-1. **Install rclone** – run `install-rclone.ps1` (Windows) or follow `Info/INSTALL_RCLONE.md`.
+### Cloud File Sync (rclone)
+
+1. **Install rclone** – run `install-rclone.ps1` (Windows) or follow Appendix A below.
 2. **Configure a remote** – `rclone config` (e.g., `drive:`, `onedrive:`, `dropbox:`).
-3. **Edit `cloud-backup.config.js`:**
-   - `rcloneRemote`: name from step 2 (include the trailing colon).
-   - `localFolder`: absolute path to the folder you want to sync.
-   - `cloudFolder`: remote folder ("" writes to the root).
-   - `maxFilesToKeep` and `daysToKeep`: retention policy.
+3. **Edit `backup.config.js` (cloud section):**
+   ```javascript
+   cloud: {
+     rcloneRemote: "drive:",
+     localFolder: "C:\\Codes\\backup",
+     cloudFolder: "Backups/",
+     runOnStart: true,
+     maxFilesToKeep: 7,
+     daysToKeep: null
+   }
+   ```
 4. **Test once:** `npm run backup:once`
-5. **Run alongside dev:** `npm run dev` (already includes the backup scheduler) or start it independently via `npm run backup`.
+5. **Run alongside dev:** `npm run dev` (already includes the backup scheduler) or start it with `npm run backup`.
 
 > The scheduler uploads only new files and trims the remote directory to the newest `maxFilesToKeep` files, so it is safe to leave running indefinitely.
+
+### PostgreSQL Dump Agent
+
+1. Confirm `pg_dump` is installed and on PATH (ships with PostgreSQL). On Windows you may need to add `C:\Program Files\PostgreSQL\<version>\bin`.
+2. Edit `backup.config.js` (postgres section):
+   ```javascript
+   postgres: {
+     pgDumpPath: "pg_dump",
+     dbHost: "localhost",
+     dbPort: 5432,
+     dbName: "POS_DB",
+     dbUser: "postgres",
+     dbPassword: "123",
+     backupDir: "C:\\Codes\\postgres-backups",
+     filePrefix: "pos-backup",
+     maxBackups: 7,
+     daysToKeep: 14,
+     runOnStart: true,
+     schedule: "0 12 * * *"
+   }
+   ```
+3. Test the process: `npm run db:backup:once`
+4. Keep it running via `npm run dev` (includes the scheduler) or start it independently with `npm run db:backup`.
+
+> The agent writes timestamped `.sql` dumps using `pg_dump`, then prunes old files based on both age and count so your backup folder never grows unbounded.
 
 ---
 
@@ -146,6 +179,19 @@ To change seeded data, edit `backend/database/init.js` before the first launch, 
 | Backend | `npm start` | Start Express without watch (production) |
 | Frontend | `npm run dev` | Start Vite development server |
 | Frontend | `npm run build` | Create production build (dist/) |
+
+---
+
+## Appendix A – Install rclone on Windows
+
+1. Download the Windows 64-bit ZIP from https://rclone.org/downloads/.
+2. Extract the archive and move `rclone.exe` to `C:\rclone` (or another permanent folder).
+3. Add that folder to the **Path** environment variable (System Properties → Advanced → Environment Variables).
+4. Close and reopen PowerShell, then run `rclone version`.
+5. Configure a remote: `rclone config` → create `drive:` / `onedrive:` / etc.
+6. Update the `cloud.rcloneRemote` setting in `backup.config.js` to match the remote name (including the trailing colon).
+
+> If you prefer automation, right-click `install-rclone.ps1` in the project root and select **Run with PowerShell**. After the script finishes, reopen your terminal before running `rclone version`.
 
 ---
 

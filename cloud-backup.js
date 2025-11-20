@@ -4,7 +4,7 @@ import { readdir, stat, access } from 'fs/promises';
 import { join, basename } from 'path';
 import { constants } from 'fs';
 import cron from 'node-cron';
-import config from './cloud-backup.config.js';
+import config from './backup.config.js';
 
 const execAsync = promisify(exec);
 
@@ -428,7 +428,8 @@ class CloudBackup {
 }
 
 // Main execution
-const backup = new CloudBackup(config);
+const cloudConfig = config?.cloud ?? {};
+const backup = new CloudBackup(cloudConfig);
 
 // Run once if --once flag is provided
 if (process.argv.includes('--once')) {

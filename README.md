@@ -14,6 +14,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 - **Payment flexibility** – Ships with default tenders and supports receipt regeneration and printing.
 - **Inventory tracking** – Sale completion automatically adjusts product stock.
 - **Cloud-safe backups** – Optional rclone helper uploads exported files on a schedule and enforces retention.
+- **Database safety** – A pg_dump-based agent creates rolling PostgreSQL backups every day at noon.
 
 ---
 
@@ -71,14 +72,83 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
    ```
    - Frontend → http://localhost:5173  
    - Backend API → http://localhost:3000  
-   - Cloud backup scheduler → runs automatically via `node cloud-backup.js`
+   - Cloud backup scheduler → runs automatically via `node cloud-backup.js`  
+   - PostgreSQL backup agent → runs via `node postgres-backup.js` (daily noon cron)
 
-   > Don’t have rclone configured yet? Either install it (see `Info/INSTALL_RCLONE.md`) or run services separately with `npm run dev:backend`, `npm run dev:frontend`, and skip `npm run backup` for now.
+   > No rclone yet? Install it first (see “Install rclone” below) or split the commands: `npm run dev:backend`, `npm run dev:frontend`, and skip `npm run backup`.
 
-4. **Visit the App**
-   Open `http://localhost:5173` in your browser.
+4. **Verify the App**
+   - Visit http://localhost:5173.
+   - Add a product (optional Base64 image), process a sale in **POS**, and confirm it appears in **Sales**.
+   - Print a receipt to ensure thermal formatting works.
 
 The first backend launch will create tables and seed defaults (payment types, sample category). Existing databases receive column backfills automatically (discount columns, Base64 image field, VAT exclusion flag).
+
+---
+
+## Automated Backups
+
+Keep business data safe by configuring both schedulers through `backup.config.js`.
+
+### Cloud File Sync (rclone)
+
+1. Install rclone (see “Install rclone” below or run `install-rclone.ps1` on Windows).
+2. Run `rclone config` and create a remote such as `drive:` or `onedrive:`.
+3. Edit the `cloud` section in `backup.config.js`:
+   ```javascript
+   cloud: {
+     rcloneRemote: "drive:",
+     localFolder: "C:\\Codes\\backup",
+     cloudFolder: "Backups/",
+     runOnStart: true,
+     maxFilesToKeep: 7,
+     daysToKeep: null
+   }
+   ```
+4. Test once: `npm run backup:once`
+5. Keep it running with `npm run dev` (already launches the scheduler) or `npm run backup`.
+
+How it works:
+- Uploads only files missing in the remote (name + size comparison).
+- Cleans the remote by deleting items older than `daysToKeep` and trimming to `maxFilesToKeep`.
+- Default cron: daily at 1 PM server time (see `cloud-backup.js` to change).
+
+### PostgreSQL Dump Agent
+
+1. Ensure `pg_dump` is on PATH (ships with PostgreSQL; add `.../PostgreSQL/<version>/bin` on Windows if needed).
+2. Edit the `postgres` section in `backup.config.js`:
+   ```javascript
+   postgres: {
+     pgDumpPath: "pg_dump",
+     dbHost: "localhost",
+     dbPort: 5432,
+     dbName: "POS_DB",
+     dbUser: "postgres",
+     dbPassword: "123",
+     backupDir: "C:\\Codes\\postgres-backups",
+     filePrefix: "pos-backup",
+     maxBackups: 7,
+     daysToKeep: 14,
+     runOnStart: true,
+     schedule: "0 12 * * *" // daily at noon
+   }
+   ```
+3. Test once: `npm run db:backup:once`
+4. Keep it running with `npm run dev` or `npm run db:backup`.
+
+Each run writes a timestamped `.sql` dump via `pg_dump`, then deletes old files using both age and count rules so the directory never grows unbounded.
+
+---
+
+## Install rclone (Windows quick method)
+
+1. Download the Windows 64-bit ZIP from https://rclone.org/downloads/.
+2. Extract it and move `rclone.exe` to `C:\rclone`.
+3. Add `C:\rclone` to your **Path** (System Properties → Advanced → Environment Variables).
+4. Close and reopen PowerShell; run `rclone version`.
+5. Configure a remote with `rclone config`, then reference that name (e.g., `drive:`) in `backup.config.js`.
+
+> Prefer automation? Right-click `install-rclone.ps1` at the repo root and choose “Run with PowerShell” (may require admin privileges). After installation, restart your terminal and run `rclone version` to confirm.
 
 ---
 
@@ -188,9 +258,11 @@ Adjust defaults by editing `backend/database/init.js` before the first run, or u
 | Location | Command | Description |
 | --- | --- | --- |
 | root | `npm run install:all` | Install dependencies for root + services |
-| root | `npm run dev` | Run frontend, backend, and cloud backup scheduler |
+| root | `npm run dev` | Run frontend, backend, cloud backup, and DB backup schedulers |
 | root | `npm run backup` | Start only the backup scheduler (`node cloud-backup.js`) |
 | root | `npm run backup:once` | Run a one-off backup for smoke tests |
+| root | `npm run db:backup` | Start the PostgreSQL backup scheduler |
+| root | `npm run db:backup:once` | Run a single pg_dump backup |
 | backend | `npm run dev` | Start Express with file watcher |
 | backend | `npm start` | Start Express (production) |
 | frontend | `npm run dev` | Launch Vite dev server |
