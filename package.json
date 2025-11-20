@@ -2,17 +2,22 @@
   "name": "point-of-sale",
   "version": "1.0.0",
   "description": "Point of Sale application with Vue.js, Node.js, and MS SQL",
+  "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run backup\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "backup:once": "node cloud-backup.js --once"
   },
   "keywords": ["pos", "vue", "nodejs", "mssql"],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3"
   }
 }
 

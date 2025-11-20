@@ -3,7 +3,6 @@ node_modules/
 .env.local
 *.log
 dist/
-backend/uploads/
 .DS_Store
 .vscode/
 .idea/
