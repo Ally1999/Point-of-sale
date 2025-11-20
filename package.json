@@ -8,6 +8,7 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "backup": "node cloud-backup.js",
     "backup:once": "node cloud-backup.js --once"
   },
   "keywords": ["pos", "vue", "nodejs", "mssql"],
