@@ -1,26 +1,40 @@
 <template>
-  <div class="pos-container">
+  <div class="pos-container" aria-label="Point of Sale workspace">
     <div class="pos-layout">
       <!-- Product Search/Scan Section -->
-      <div class="pos-left">
+      <section class="pos-left" aria-label="Product lookup and quick add">
         <div class="card">
-          <h2>Scan/Add Product</h2>
+          <header class="section-header">
+            <div>
+              <h2>Scan or Tap Products</h2>
+              <p class="section-subtitle">Enter a barcode or tap an item to add it to the cart.</p>
+            </div>
+            <span class="badge" aria-live="polite">{{ filteredProducts.length }} items</span>
+          </header>
           <div class="form-group">
+            <label for="product-search-input">Barcode / Product Search</label>
             <input
+              id="product-search-input"
               v-model="barcodeInput"
               @keyup.enter="scanBarcode"
               type="text"
               class="input"
-              placeholder="Scan barcode or enter product code"
+              placeholder="Scan barcode or start typing"
               ref="barcodeInputRef"
+              inputmode="search"
+              autocomplete="off"
+              aria-describedby="product-search-hint"
             />
+            <small id="product-search-hint" class="field-hint">Press Enter to add the top match instantly.</small>
           </div>
-          <div class="product-list">
-            <div
+          <div class="product-list" role="list">
+            <button
               v-for="product in filteredProducts"
               :key="product.ProductID"
+              type="button"
               class="product-item"
               @click="addToCart(product)"
+              :aria-label="`Add ${product.ProductName} for Rs ${formatPrice(product.Price)}`"
             >
               <img
                 v-if="product.ImageBase64"
@@ -28,36 +42,44 @@
                 :alt="product.ProductName"
                 class="product-image-small"
               />
-              <span v-else class="no-image">No Image</span>
+              <span v-else class="no-image" aria-hidden="true">No Image</span>
               <div class="product-info">
                 <div class="product-name">{{ product.ProductName }}</div>
                 <div class="product-price">Rs {{ formatPrice(product.Price) }}</div>
                 <div class="product-barcode" v-if="product.Barcode">{{ product.Barcode }}</div>
               </div>
-            </div>
+              <span class="product-action">Add</span>
+            </button>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Cart Section -->
-      <div class="pos-right">
-        <div class="card">
-          <h2>Cart</h2>
-          <div class="cart-items">
+      <section class="pos-right" aria-label="Cart and checkout">
+        <div class="card cart-card">
+          <header class="section-header">
+            <div>
+              <h2>Cart</h2>
+              <p class="section-subtitle">Review quantities, discounts, and taxes.</p>
+            </div>
+            <span class="badge">{{ cart.length }} selected</span>
+          </header>
+          <div class="cart-items" role="list" aria-live="polite">
             <div v-if="cart.length === 0" class="empty-cart">Cart is empty</div>
-            <div
+            <article
               v-for="(item, index) in cart"
               :key="index"
               class="cart-item"
+              role="listitem"
             >
               <div class="cart-item-info">
                 <div class="cart-item-name">{{ item.productName }}</div>
                 <div class="cart-item-details">
-                  <span>Rs {{ formatPrice(item.unitPrice) }} × {{ item.quantity }}</span>
+                  <span class="price-chip">Rs {{ formatPrice(item.unitPrice) }} × {{ item.quantity }}</span>
                   <span v-if="item.isVAT && !item.excludeVAT" class="vat-badge">VAT {{ item.vatRate }}%</span>
                   <span v-if="item.isVAT && item.excludeVAT" class="vat-excluded-badge">VAT Excluded</span>
                   <span v-if="item.discountAmount > 0" class="discount-badge">
-                    Discount: Rs {{ formatPrice(item.discountAmount) }}
+                    - Rs {{ formatPrice(item.discountAmount) }}
                   </span>
                 </div>
                 <div class="cart-item-line-total">
@@ -84,23 +106,23 @@
                       step="0.01"
                       min="0"
                       class="input-small"
-                      placeholder="Discount amount (Rs)"
+                      placeholder="Discount amount"
                       @input="calculateItemDiscount(index)"
                     />
                     <button @click="hideItemDiscount(index)" class="btn btn-secondary">Cancel</button>
                   </div>
                 </div>
               </div>
-              <div class="cart-item-actions">
-                <button @click="decreaseQuantity(index)" class="btn btn-secondary">-</button>
+              <div class="cart-item-actions" aria-label="Quantity controls">
+                <button @click="decreaseQuantity(index)" class="btn btn-secondary circle-btn" :aria-label="`Decrease ${item.productName}`">-</button>
                 <span class="quantity">{{ item.quantity }}</span>
-                <button @click="increaseQuantity(index)" class="btn btn-secondary">+</button>
-                <button @click="removeFromCart(index)" class="btn btn-danger">×</button>
+                <button @click="increaseQuantity(index)" class="btn btn-secondary circle-btn" :aria-label="`Increase ${item.productName}`">+</button>
+                <button @click="removeFromCart(index)" class="btn btn-danger circle-btn" :aria-label="`Remove ${item.productName}`">×</button>
               </div>
-            </div>
+            </article>
           </div>
 
-          <div class="cart-summary">
+          <div class="cart-summary" role="status" aria-live="polite">
             <div class="summary-row">
               <span>Subtotal:</span>
               <span>Rs {{ formatPrice(originalSubtotal) }}</span>
@@ -129,8 +151,9 @@
 
           <div class="discount-section">
             <div class="form-group">
-              <label>Sale Discount (Amount)</label>
+              <label for="sale-discount-input">Sale Discount (Amount)</label>
               <input
+                id="sale-discount-input"
                 v-model.number="saleDiscountValue"
                 type="number"
                 step="0.01"
@@ -143,8 +166,8 @@
 
           <div class="payment-section">
             <div class="form-group">
-              <label>Payment Type</label>
-              <select v-model="selectedPaymentType" class="input">
+              <label for="payment-type-select">Payment Type</label>
+              <select id="payment-type-select" v-model="selectedPaymentType" class="input">
                 <option v-for="payment in paymentTypes" :key="payment.PaymentTypeID" :value="payment.PaymentTypeID">
                   {{ payment.PaymentName }}
                 </option>
@@ -159,14 +182,14 @@
             </button>
           </div>
         </div>
-      </div>
+      </section>
     </div>
 
     <!-- Receipt Modal -->
-    <div v-if="showReceipt" class="modal" @click.self="closeReceipt">
+    <div v-if="showReceipt" class="modal" @click.self="closeReceipt" role="dialog" aria-modal="true" aria-labelledby="receipt-title">
       <div class="modal-content receipt" id="receipt">
         <div class="receipt-header">
-          <h2>Receipt</h2>
+          <h2 id="receipt-title">Receipt</h2>
           <p>{{ receiptData.SaleNumber }}</p>
           <p>{{ formatDate(receiptData.SaleDate) }}</p>
         </div>
@@ -649,51 +672,94 @@ export default {
 <style scoped>
 .pos-container {
   width: 100%;
+  padding-bottom: 48px;
 }
 
 .pos-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 32px;
+  align-items: flex-start;
 }
 
 .pos-left {
-  max-height: calc(100vh - 150px);
+  max-height: calc(100vh - 200px);
   overflow-y: auto;
+  padding-right: 6px;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.section-header h2 {
+  font-size: 1.35rem;
+  margin-bottom: 6px;
+}
+
+.section-subtitle {
+  color: var(--color-muted, #5f6b7c);
+  font-size: 0.95rem;
+}
+
+.badge {
+  background: rgba(31,111,235,0.12);
+  color: var(--color-primary, #1f6feb);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-muted, #6b7280);
+  font-size: 0.9rem;
 }
 
 .product-list {
-  margin-top: 15px;
+  margin-top: 20px;
   display: grid;
-  gap: 10px;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .product-item {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 15px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  gap: 16px;
+  padding: 18px;
+  border: 2px solid rgba(31,111,235,0.08);
+  border-radius: 16px;
+  background: #fff;
+  width: 100%;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.no-image {
-  font-size: 12px;
-  color: #999;
-}
-
-.product-item:hover {
-  background: #f8f9fa;
-  border-color: #007bff;
+.product-item:hover,
+.product-item:focus-visible {
+  border-color: var(--color-primary, #1f6feb);
+  box-shadow: 0 15px 40px rgba(31,111,235,0.18);
+  transform: translateY(-2px);
+  outline: none;
 }
 
 .product-image-small {
-  width: 60px;
-  height: 60px;
+  width: 72px;
+  height: 72px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 12px;
+}
+
+.no-image {
+  font-size: 0.85rem;
+  color: var(--color-muted, #94a3b8);
 }
 
 .product-info {
@@ -701,39 +767,47 @@ export default {
 }
 
 .product-name {
-  font-weight: 600;
-  margin-bottom: 5px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-size: 1.05rem;
 }
 
 .product-price {
-  color: #28a745;
-  font-weight: 600;
+  color: var(--color-success, #25a05c);
+  font-weight: 700;
 }
 
 .product-barcode {
-  font-size: 12px;
-  color: #666;
-  margin-top: 3px;
+  font-size: 0.85rem;
+  color: var(--color-muted, #6b7280);
+  margin-top: 2px;
+}
+
+.product-action {
+  font-weight: 600;
+  color: var(--color-primary, #1f6feb);
 }
 
 .cart-items {
-  max-height: 400px;
+  max-height: 480px;
   overflow-y: auto;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-right: 6px;
 }
 
 .empty-cart {
   text-align: center;
-  padding: 40px;
-  color: #999;
+  padding: 60px 20px;
+  color: var(--color-muted, #94a3b8);
+  font-size: 1.05rem;
 }
 
 .cart-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  border-bottom: 1px solid #eee;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(15,23,42,0.08);
 }
 
 .cart-item-info {
@@ -741,188 +815,202 @@ export default {
 }
 
 .cart-item-name {
-  font-weight: 600;
-  margin-bottom: 5px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 1.05rem;
 }
 
 .cart-item-details {
-  font-size: 14px;
-  color: #666;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  flex-wrap: wrap;
+  color: var(--color-muted, #64748b);
+  font-size: 0.95rem;
+}
+
+.price-chip {
+  background: rgba(31,111,235,0.08);
+  color: #0f172a;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-weight: 600;
 }
 
 .cart-item-line-total {
-  font-size: 13px;
-  font-weight: 600;
-  color: #28a745;
-  margin-top: 5px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-success, #25a05c);
+  margin-top: 6px;
 }
 
-.cart-item-discount {
-  margin-top: 5px;
-}
-
+.cart-item-discount,
 .cart-item-discount-form {
-  margin-top: 5px;
+  margin-top: 8px;
 }
 
 .form-row-small {
   display: flex;
-  gap: 5px;
+  gap: 8px;
   align-items: center;
 }
 
 .input-small {
-  padding: 5px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 10px;
+  border: 2px solid var(--color-border, #dce3f1);
+  border-radius: 12px;
+  font-size: 0.95rem;
   flex: 1;
 }
 
 .btn-link {
   background: none;
   border: none;
-  color: #007bff;
+  color: var(--color-primary, #1f6feb);
   cursor: pointer;
   text-decoration: underline;
-  font-size: 12px;
+  font-size: 0.92rem;
   padding: 0;
 }
 
 .btn-link:hover {
-  color: #0056b3;
+  color: var(--color-primary-dark, #174ea6);
 }
 
 .discount-badge {
-  background: #ffc107;
-  color: #333;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
+  background: rgba(249,115,22,0.15);
+  color: #b45309;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .discount-text {
-  color: #dc3545;
-  font-weight: 600;
+  color: var(--color-danger, #d92d20);
+  font-weight: 700;
 }
 
-.discount-section {
-  border-top: 1px solid #eee;
-  padding-top: 15px;
-  margin-bottom: 15px;
+.discount-section,
+.payment-section {
+  border-top: 1px solid rgba(15,23,42,0.08);
+  padding-top: 18px;
+  margin-bottom: 18px;
 }
 
 .vat-badge {
-  background: #ffc107;
-  color: #333;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
+  background: rgba(99,102,241,0.18);
+  color: #3730a3;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .vat-excluded-badge {
-  background: #6c757d;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
+  background: rgba(15,23,42,0.12);
+  color: #0f172a;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .cart-item-options {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #eee;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(15,23,42,0.15);
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  color: #666;
+  font-size: 0.95rem;
+  color: #64748b;
   cursor: pointer;
 }
 
 .checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
   cursor: pointer;
-  width: 16px;
-  height: 16px;
 }
 
 .cart-item-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.circle-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  padding: 0;
+  display: grid;
+  place-items: center;
 }
 
 .quantity {
-  min-width: 30px;
+  min-width: 38px;
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 .cart-summary {
-  border-top: 2px solid #eee;
-  padding-top: 15px;
-  margin-bottom: 20px;
+  border-top: 2px solid rgba(15,23,42,0.08);
+  background: rgba(31,111,235,0.04);
+  border-radius: 18px;
+  padding: 18px 22px;
+  margin-bottom: 22px;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
   padding: 8px 0;
+  font-size: 1rem;
 }
 
 .summary-row.total {
-  font-size: 18px;
-  font-weight: 600;
-  border-top: 2px solid #eee;
-  padding-top: 10px;
-  margin-top: 10px;
-}
-
-.payment-section {
-  border-top: 2px solid #eee;
-  padding-top: 15px;
-  margin-bottom: 20px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  border-top: 2px solid rgba(15,23,42,0.12);
+  padding-top: 12px;
+  margin-top: 12px;
 }
 
 .cart-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .cart-actions .btn {
   flex: 1;
 }
 
+.cart-card {
+  position: sticky;
+  top: 0;
+}
+
 .receipt {
-  max-width: 400px;
-  padding: 30px;
+  max-width: 420px;
+  padding: 32px;
 }
 
 .receipt-header {
   text-align: center;
   margin-bottom: 20px;
-  border-bottom: 2px dashed #ddd;
+  border-bottom: 2px dashed #e2e8f0;
   padding-bottom: 15px;
 }
 
-.receipt-header h2 {
-  margin-bottom: 10px;
-}
-
 .receipt-header p {
-  margin: 5px 0;
-  color: #666;
-  font-size: 14px;
+  margin: 4px 0;
+  color: #64748b;
 }
 
 .receipt-items {
@@ -931,33 +1019,29 @@ export default {
 
 .receipt-item {
   padding: 10px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.receipt-item-name {
-  font-weight: 600;
-  margin-bottom: 5px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .receipt-item-details {
-  font-size: 14px;
-  color: #666;
+  font-size: 0.95rem;
+  color: #475569;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .receipt-summary {
-  border-top: 2px solid #ddd;
+  border-top: 2px solid #e2e8f0;
   padding-top: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .receipt-footer {
   text-align: center;
   padding-top: 15px;
-  border-top: 2px dashed #ddd;
-  color: #666;
+  border-top: 2px dashed #e2e8f0;
+  color: #475569;
 }
 
 .receipt-actions {
@@ -970,11 +1054,28 @@ export default {
   flex: 1;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .pos-layout {
     grid-template-columns: 1fr;
   }
+
+  .cart-card {
+    position: static;
+  }
+
+  .pos-left {
+    max-height: none;
+  }
 }
 
+@media (max-width: 640px) {
+  .product-list {
+    grid-template-columns: 1fr;
+  }
+
+  .cart-actions {
+    flex-direction: column;
+  }
+}
 </style>
 
