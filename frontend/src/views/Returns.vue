@@ -1,10 +1,5 @@
 <template>
   <div class="pos-container returns-page" aria-label="Returns workspace">
-    <div class="returns-banner">
-      <div class="returns-banner-content">
-        <span class="returns-text">Returns Processing</span>
-      </div>
-    </div>
     <div class="pos-layout">
       <!-- Product Search/Scan Section -->
       <section class="pos-left" aria-label="Product lookup and quick add">
@@ -77,31 +72,31 @@
               class="cart-item"
               role="listitem"
             >
-              <div class="cart-item-info">
-                <div class="cart-item-name">{{ item.productName }}</div>
-                <div class="cart-item-details">
-                  <span class="price-chip">Rs {{ formatPrice(item.unitPrice) }} × {{ item.quantity }}</span>
-                  <span v-if="item.isVAT && !item.excludeVAT" class="vat-badge">VAT {{ item.vatRate }}%</span>
-                  <span v-if="item.isVAT && item.excludeVAT" class="vat-excluded-badge">VAT Excluded</span>
+              <div class="cart-item-main">
+                <div class="cart-item-header">
+                  <div class="cart-item-name">{{ item.productName }}</div>
+                  <div class="cart-item-total">Rs {{ formatPrice(getItemLineTotal(item)) }}</div>
                 </div>
-                <div class="cart-item-line-total">
-                  Line Total: Rs {{ formatPrice(getItemLineTotal(item)) }}
+                <div class="cart-item-details-compact">
+                  <span class="price-info">Rs {{ formatPrice(item.unitPrice) }} × {{ item.quantity }}</span>
+                  <span v-if="item.isVAT && !item.excludeVAT" class="vat-badge-small">VAT {{ item.vatRate }}%</span>
+                  <span v-if="item.isVAT && item.excludeVAT" class="vat-excluded-badge-small">VAT Excl</span>
                 </div>
-                <div class="cart-item-options" v-if="item.isVAT">
-                  <label class="checkbox-label">
+                <div class="cart-item-options-compact" v-if="item.isVAT">
+                  <label class="checkbox-label-compact">
                     <input 
                       type="checkbox" 
                       v-model="item.excludeVAT"
                     />
-                    Exclude VAT
+                    <span>Exclude VAT</span>
                   </label>
                 </div>
               </div>
               <div class="cart-item-actions" aria-label="Quantity controls">
-                <button @click="decreaseQuantity(index)" class="btn btn-secondary circle-btn" :aria-label="`Decrease ${item.productName}`">-</button>
+                <button @click="decreaseQuantity(index)" class="btn btn-secondary btn-qty" :aria-label="`Decrease ${item.productName}`">−</button>
                 <span class="quantity">{{ item.quantity }}</span>
-                <button @click="increaseQuantity(index)" class="btn btn-secondary circle-btn" :aria-label="`Increase ${item.productName}`">+</button>
-                <button @click="removeFromCart(index)" class="btn btn-danger circle-btn" :aria-label="`Remove ${item.productName}`">×</button>
+                <button @click="increaseQuantity(index)" class="btn btn-secondary btn-qty" :aria-label="`Increase ${item.productName}`">+</button>
+                <button @click="removeFromCart(index)" class="btn btn-danger btn-remove" :aria-label="`Remove ${item.productName}`">×</button>
               </div>
             </article>
           </div>
@@ -441,7 +436,7 @@ export default {
 <style scoped>
 .returns-page {
   width: 100%;
-  padding-bottom: 48px;
+  padding-bottom: 0px;
   position: relative;
 }
 
@@ -476,6 +471,11 @@ export default {
 
 .return-cart-card {
   border-left: 4px solid #f59e0b;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .return-header {
@@ -499,9 +499,9 @@ export default {
 .return-total {
   color: #dc2626 !important;
   background: rgba(220, 38, 38, 0.08);
-  padding: 12px 16px;
-  border-radius: 12px;
-  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 6px;
   border: 2px solid rgba(220, 38, 38, 0.2);
 }
 
@@ -528,11 +528,18 @@ export default {
   padding-right: 6px;
 }
 
+.pos-right {
+  max-height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
+}
+
 .section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
+  flex-shrink: 0;
 }
 
 .section-header h2 {
@@ -634,10 +641,30 @@ export default {
 }
 
 .cart-items {
-  max-height: 480px;
+  flex: 1;
   overflow-y: auto;
-  margin-bottom: 24px;
-  padding-right: 6px;
+  overflow-x: hidden;
+  margin-bottom: 20px;
+  padding-right: 8px;
+  min-height: 0;
+}
+
+.cart-items::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cart-items::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.cart-items::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.cart-items::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .empty-cart {
@@ -650,28 +677,63 @@ export default {
 .cart-item {
   display: flex;
   justify-content: space-between;
-  gap: 18px;
-  padding: 18px 0;
-  border-bottom: 1px solid rgba(15,23,42,0.08);
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
-.cart-item-info {
+.cart-item:hover {
+  background: #f3f4f6;
+  border-color: #f59e0b;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1);
+}
+
+.cart-item-main {
   flex: 1;
+  min-width: 0;
+}
+
+.cart-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
 }
 
 .cart-item-name {
   font-weight: 700;
-  margin-bottom: 6px;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
+  color: #1e293b;
+  flex: 1;
+  line-height: 1.3;
 }
 
-.cart-item-details {
+.cart-item-total {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #dc2626;
+  white-space: nowrap;
+  font-family: 'Courier New', monospace;
+}
+
+.cart-item-details-compact {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
-  color: var(--color-muted, #64748b);
-  font-size: 0.95rem;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+.price-info {
+  color: #64748b;
+  font-weight: 500;
 }
 
 .price-chip {
@@ -682,61 +744,117 @@ export default {
   font-weight: 600;
 }
 
-.cart-item-line-total {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--color-success, #25a05c);
-  margin-top: 6px;
+.vat-badge-small,
+.vat-excluded-badge-small {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.cart-item-options {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed rgba(15,23,42,0.15);
+.vat-badge-small {
+  background: rgba(99,102,241,0.15);
+  color: #3730a3;
 }
 
-.checkbox-label {
+.vat-excluded-badge-small {
+  background: rgba(15,23,42,0.1);
+  color: #0f172a;
+}
+
+.cart-item-options-compact {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.95rem;
+  gap: 12px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.checkbox-label-compact {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
   color: #64748b;
   cursor: pointer;
 }
 
-.checkbox-label input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+.checkbox-label-compact input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
   cursor: pointer;
+  margin: 0;
+}
+
+.checkbox-label-compact span {
+  font-size: 0.8rem;
 }
 
 .cart-item-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.circle-btn {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
+.btn-qty {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
   padding: 0;
   display: grid;
   place-items: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  min-width: 32px;
+}
+
+.btn-remove {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 1.4rem;
+  font-weight: 600;
+  min-width: 32px;
 }
 
 .quantity {
-  min-width: 38px;
+  min-width: 28px;
   text-align: center;
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  color: #1e293b;
 }
 
 .discount-section,
 .payment-section {
   border-top: 1px solid rgba(15,23,42,0.08);
-  padding-top: 18px;
-  margin-bottom: 18px;
+  padding-top: 12px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.discount-section .form-group,
+.payment-section .form-group {
+  margin-bottom: 0;
+}
+
+.discount-section label,
+.payment-section label {
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.discount-section .input,
+.payment-section .input,
+.payment-section select {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  height: auto;
 }
 
 .vat-badge {
@@ -760,35 +878,42 @@ export default {
 .cart-summary {
   border-top: 2px solid rgba(245, 158, 11, 0.2);
   background: rgba(245, 158, 11, 0.06);
-  border-radius: 18px;
-  padding: 18px 22px;
-  margin-bottom: 22px;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
   border-left: 3px solid #f59e0b;
+  flex-shrink: 0;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
-  font-size: 1rem;
+  padding: 4px 0;
+  font-size: 0.9rem;
 }
 
 .summary-row.total {
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   font-weight: 700;
   border-top: 2px solid rgba(15,23,42,0.12);
-  padding-top: 12px;
-  margin-top: 12px;
+  padding-top: 8px;
+  margin-top: 8px;
   color: #dc2626;
 }
 
 .cart-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 .cart-actions .btn {
   flex: 1;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .cart-card {
