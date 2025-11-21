@@ -15,6 +15,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 - **Inventory tracking** – Sale completion automatically adjusts product stock.
 - **Cloud-safe backups** – Optional rclone helper uploads exported files on a schedule and enforces retention.
 - **Database safety** – A pg_dump-based agent creates rolling PostgreSQL backups every day at noon.
+- **One-click backup toggle** – Enable/disable either agent centrally via `backup.config.js`.
 
 ---
 
@@ -24,6 +25,7 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
 - Item and cart discounts are amount-only (percentage option removed).
 - Sales lines can mark VAT as excluded; receipts hide the VAT badge accordingly.
 - Backend request limits tuned for Base64 uploads (5 MB JSON payloads).
+- Backup agents respect `enabled` flags so schedulers can be paused without editing scripts.
 
 ---
 
@@ -72,8 +74,8 @@ A modern, offline-ready Point of Sale (POS) application powered by Vue 3, Vite, 
    ```
    - Frontend → http://localhost:5173  
    - Backend API → http://localhost:3000  
-   - Cloud backup scheduler → runs automatically via `node cloud-backup.js`  
-   - PostgreSQL backup agent → runs via `node postgres-backup.js` (daily noon cron)
+   - Cloud backup scheduler → runs automatically via `node cloud-backup.js` (if `cloud.enabled !== false`)  
+   - PostgreSQL backup agent → runs via `node postgres-backup.js` (if `postgres.enabled !== false`)
 
    > No rclone yet? Install it first (see “Install rclone” below) or split the commands: `npm run dev:backend`, `npm run dev:frontend`, and skip `npm run backup`.
 
@@ -97,10 +99,12 @@ Keep business data safe by configuring both schedulers through `backup.config.js
 3. Edit the `cloud` section in `backup.config.js`:
    ```javascript
    cloud: {
+     enabled: true,
      rcloneRemote: "drive:",
      localFolder: "C:\\Codes\\backup",
      cloudFolder: "Backups/",
      runOnStart: true,
+     schedule: "* 15 * * * *",
      maxFilesToKeep: 7,
      daysToKeep: null
    }
@@ -111,7 +115,8 @@ Keep business data safe by configuring both schedulers through `backup.config.js
 How it works:
 - Uploads only files missing in the remote (name + size comparison).
 - Cleans the remote by deleting items older than `daysToKeep` and trimming to `maxFilesToKeep`.
-- Default cron: daily at 1 PM server time (see `cloud-backup.js` to change).
+- Default cron: top of every minute during the 3 PM hour (see `cloud-backup.js` or `backup.config.js` to change).
+- Set `cloud.enabled = false` to temporarily turn the agent off without touching scripts.
 
 ### PostgreSQL Dump Agent
 
@@ -119,6 +124,7 @@ How it works:
 2. Edit the `postgres` section in `backup.config.js`:
    ```javascript
    postgres: {
+     enabled: true,
      pgDumpPath: "pg_dump",
      dbHost: "localhost",
      dbPort: 5432,
@@ -130,13 +136,13 @@ How it works:
      maxBackups: 7,
      daysToKeep: 14,
      runOnStart: true,
-     schedule: "0 12 * * *" // daily at noon
+     schedule: "* 15 * * * *"
    }
    ```
 3. Test once: `npm run db:backup:once`
 4. Keep it running with `npm run dev` or `npm run db:backup`.
 
-Each run writes a timestamped `.sql` dump via `pg_dump`, then deletes old files using both age and count rules so the directory never grows unbounded.
+Each run writes a timestamped `.sql` dump via `pg_dump`, then deletes old files using both age and count rules so the directory never grows unbounded. Set `postgres.enabled = false` to pause the scheduler cleanly.
 
 ---
 

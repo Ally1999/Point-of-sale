@@ -97,10 +97,12 @@ Open your browser to **http://localhost:5173** once both services are running.
 3. **Edit `backup.config.js` (cloud section):**
    ```javascript
    cloud: {
+     enabled: true,
      rcloneRemote: "drive:",
      localFolder: "C:\\Codes\\backup",
      cloudFolder: "Backups/",
      runOnStart: true,
+     schedule: "* 15 * * * *",
      maxFilesToKeep: 7,
      daysToKeep: null
    }
@@ -108,7 +110,7 @@ Open your browser to **http://localhost:5173** once both services are running.
 4. **Test once:** `npm run backup:once`
 5. **Run alongside dev:** `npm run dev` (already includes the backup scheduler) or start it with `npm run backup`.
 
-> The scheduler uploads only new files and trims the remote directory to the newest `maxFilesToKeep` files, so it is safe to leave running indefinitely.
+> Flip `cloud.enabled` to `false` anytime you want to pause uploads without editing scripts. The scheduler uploads only new files and trims the remote directory to the newest `maxFilesToKeep` files, so it is safe to leave running indefinitely.
 
 ### PostgreSQL Dump Agent
 
@@ -116,6 +118,7 @@ Open your browser to **http://localhost:5173** once both services are running.
 2. Edit `backup.config.js` (postgres section):
    ```javascript
    postgres: {
+     enabled: true,
      pgDumpPath: "pg_dump",
      dbHost: "localhost",
      dbPort: 5432,
@@ -127,13 +130,13 @@ Open your browser to **http://localhost:5173** once both services are running.
      maxBackups: 7,
      daysToKeep: 14,
      runOnStart: true,
-     schedule: "0 12 * * *"
+     schedule: "* 15 * * * *"
    }
    ```
 3. Test the process: `npm run db:backup:once`
 4. Keep it running via `npm run dev` (includes the scheduler) or start it independently with `npm run db:backup`.
 
-> The agent writes timestamped `.sql` dumps using `pg_dump`, then prunes old files based on both age and count so your backup folder never grows unbounded.
+> Toggle `postgres.enabled` to `false` to pause database dumps. The agent writes timestamped `.sql` backups using `pg_dump`, then prunes old files based on both age and count so your backup folder never grows unbounded.
 
 ---
 
