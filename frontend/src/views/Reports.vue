@@ -1,12 +1,22 @@
 <template>
   <div class="reports-container">
+    <!-- Page Header -->
     <div class="page-header">
-      <h1>Reports</h1>
+      <div class="header-content">
+        <div class="header-icon">📊</div>
+        <div>
+          <h1>Reports & Analytics</h1>
+          <p class="header-subtitle">Comprehensive business insights and performance metrics</p>
+        </div>
+      </div>
     </div>
 
     <!-- Date Filter -->
     <div class="card filter-section">
-      <h3>Date Range</h3>
+      <div class="filter-header">
+        <div class="filter-icon">📅</div>
+        <h3>Date Range Filter</h3>
+      </div>
       <div class="filter-row">
         <div class="form-group">
           <label>Start Date</label>
@@ -16,15 +26,21 @@
           <label>End Date</label>
           <input v-model="filters.endDate" type="date" class="input" />
         </div>
-        <div class="form-group">
-          <button @click="applyFilters" class="btn btn-primary">Apply Filters</button>
-          <button @click="resetFilters" class="btn btn-secondary">Reset</button>
+        <div class="form-group filter-actions">
+          <button @click="applyFilters" class="btn btn-primary">
+            <span class="btn-icon">✓</span>
+            Apply Filters
+          </button>
+          <button @click="resetFilters" class="btn btn-secondary">
+            <span class="btn-icon">↻</span>
+            Reset
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Report Tabs -->
-    <div class="card">
+    <div class="card tabs-card">
       <div class="tabs">
         <button 
           v-for="tab in tabs" 
@@ -32,162 +48,206 @@
           @click="activeTab = tab.id"
           :class="['tab-button', { active: activeTab === tab.id }]"
         >
-          {{ tab.label }}
+          <span class="tab-icon">{{ getTabIcon(tab.id) }}</span>
+          <span class="tab-label">{{ tab.label }}</span>
         </button>
       </div>
 
       <!-- Sales by Payment Method -->
       <div v-if="activeTab === 'payment'" class="tab-content">
         <div class="export-section">
-          <button @click="exportSalesByPayment" class="btn btn-primary" :disabled="salesByPayment.length === 0 || loading">
-            📥 Export to Excel
+          <button @click="exportSalesByPayment" class="btn btn-primary export-btn" :disabled="salesByPayment.length === 0 || loading">
+            <span class="btn-icon">📥</span>
+            Export to Excel
           </button>
         </div>
-        <div v-if="loading" class="loading">Loading...</div>
+        <div v-if="loading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
         <div v-else>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Payment Method</th>
-                <th>Sale Count</th>
-                <th>Total Revenue</th>
-                <th>Subtotal</th>
-                <th>VAT</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in salesByPayment" :key="item.PaymentName">
-                <td>{{ item.PaymentName || 'Unknown' }}</td>
-                <td>{{ item.SaleCount }}</td>
-                <td>Rs {{ formatPrice(item.TotalRevenue) }}</td>
-                <td>Rs {{ formatPrice(item.TotalSubtotal) }}</td>
-                <td>Rs {{ formatPrice(item.TotalVAT) }}</td>
-              </tr>
-              <tr v-if="salesByPayment.length === 0">
-                <td colspan="5" class="text-center">No data available</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Payment Method</th>
+                  <th>Sale Count</th>
+                  <th>Total Revenue</th>
+                  <th>Subtotal</th>
+                  <th>VAT</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in salesByPayment" :key="item.PaymentName">
+                  <td class="table-cell-primary">{{ item.PaymentName || 'Unknown' }}</td>
+                  <td><span class="badge-count">{{ item.SaleCount }}</span></td>
+                  <td class="table-cell-money">Rs {{ formatPrice(item.TotalRevenue) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(item.TotalSubtotal) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(item.TotalVAT) }}</td>
+                </tr>
+                <tr v-if="salesByPayment.length === 0">
+                  <td colspan="5" class="text-center empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No data available for the selected date range</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- Top Products -->
       <div v-if="activeTab === 'products'" class="tab-content">
         <div class="export-section">
-          <button @click="exportTopProducts" class="btn btn-primary" :disabled="topProducts.length === 0 || loading">
-            📥 Export to Excel
+          <button @click="exportTopProducts" class="btn btn-primary export-btn" :disabled="topProducts.length === 0 || loading">
+            <span class="btn-icon">📥</span>
+            Export to Excel
           </button>
         </div>
-        <div v-if="loading" class="loading">Loading...</div>
+        <div v-if="loading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
         <div v-else>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Product Name</th>
-                <th>Quantity Sold</th>
-                <th>Total Revenue</th>
-                <th>Sale Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="product in topProducts" :key="product.ProductName">
-                <td>{{ product.ProductName }}</td>
-                <td>{{ product.TotalQuantity }}</td>
-                <td>Rs {{ formatPrice(product.TotalRevenue) }}</td>
-                <td>{{ product.SaleCount }}</td>
-              </tr>
-              <tr v-if="topProducts.length === 0">
-                <td colspan="4" class="text-center">No data available</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Quantity Sold</th>
+                  <th>Total Revenue</th>
+                  <th>Sale Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(product, index) in topProducts" :key="product.ProductName">
+                  <td class="table-cell-primary">
+                    <span class="rank-badge" v-if="index < 3">{{ index + 1 }}</span>
+                    {{ product.ProductName }}
+                  </td>
+                  <td><span class="badge-count">{{ product.TotalQuantity }}</span></td>
+                  <td class="table-cell-money">Rs {{ formatPrice(product.TotalRevenue) }}</td>
+                  <td><span class="badge-count">{{ product.SaleCount }}</span></td>
+                </tr>
+                <tr v-if="topProducts.length === 0">
+                  <td colspan="4" class="text-center empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No data available for the selected date range</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- Daily Sales -->
       <div v-if="activeTab === 'daily'" class="tab-content">
         <div class="export-section">
-          <button @click="exportDailySales" class="btn btn-primary" :disabled="dailySales.length === 0 || loading">
-            📥 Export to Excel
+          <button @click="exportDailySales" class="btn btn-primary export-btn" :disabled="dailySales.length === 0 || loading">
+            <span class="btn-icon">📥</span>
+            Export to Excel
           </button>
         </div>
-        <div v-if="loading" class="loading">Loading...</div>
+        <div v-if="loading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
         <div v-else>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Sale Count</th>
-                <th>Total Revenue</th>
-                <th>Subtotal</th>
-                <th>VAT</th>
-                <th>Discounts</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="day in dailySales" :key="day.SaleDate">
-                <td>{{ formatDate(day.SaleDate) }}</td>
-                <td>{{ day.SaleCount }}</td>
-                <td>Rs {{ formatPrice(day.TotalRevenue) }}</td>
-                <td>Rs {{ formatPrice(day.TotalSubtotal) }}</td>
-                <td>Rs {{ formatPrice(day.TotalVAT) }}</td>
-                <td>Rs {{ formatPrice(day.TotalDiscounts) }}</td>
-              </tr>
-              <tr v-if="dailySales.length === 0">
-                <td colspan="6" class="text-center">No data available</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Sale Count</th>
+                  <th>Total Revenue</th>
+                  <th>Subtotal</th>
+                  <th>VAT</th>
+                  <th>Discounts</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="day in dailySales" :key="day.SaleDate">
+                  <td class="table-cell-primary">{{ formatDate(day.SaleDate) }}</td>
+                  <td><span class="badge-count">{{ day.SaleCount }}</span></td>
+                  <td class="table-cell-money">Rs {{ formatPrice(day.TotalRevenue) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(day.TotalSubtotal) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(day.TotalVAT) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(day.TotalDiscounts) }}</td>
+                </tr>
+                <tr v-if="dailySales.length === 0">
+                  <td colspan="6" class="text-center empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No data available for the selected date range</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- Product Sales Detail -->
       <div v-if="activeTab === 'product-detail'" class="tab-content">
         <div class="export-section">
-          <button @click="exportProductSales" class="btn btn-primary" :disabled="productSales.length === 0 || loading">
-            📥 Export to Excel
+          <button @click="exportProductSales" class="btn btn-primary export-btn" :disabled="productSales.length === 0 || loading">
+            <span class="btn-icon">📥</span>
+            Export to Excel
           </button>
         </div>
-        <div v-if="loading" class="loading">Loading...</div>
+        <div v-if="loading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
         <div v-else>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Product Name</th>
-                <th>Barcode</th>
-                <th>Quantity Sold</th>
-                <th>Avg Unit Price</th>
-                <th>Total Revenue</th>
-                <th>Total Discounts</th>
-                <th>Sale Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="product in productSales" :key="product.ProductName">
-                <td>{{ product.ProductName }}</td>
-                <td>{{ product.Barcode || '-' }}</td>
-                <td>{{ product.TotalQuantity }}</td>
-                <td>Rs {{ formatPrice(product.AvgUnitPrice) }}</td>
-                <td>Rs {{ formatPrice(product.TotalRevenue) }}</td>
-                <td>Rs {{ formatPrice(product.TotalDiscounts) }}</td>
-                <td>{{ product.SaleCount }}</td>
-              </tr>
-              <tr v-if="productSales.length === 0">
-                <td colspan="7" class="text-center">No data available</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Barcode</th>
+                  <th>Quantity Sold</th>
+                  <th>Avg Unit Price</th>
+                  <th>Total Revenue</th>
+                  <th>Total Discounts</th>
+                  <th>Sale Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="product in productSales" :key="product.ProductName">
+                  <td class="table-cell-primary">{{ product.ProductName }}</td>
+                  <td><span class="badge-secondary">{{ product.Barcode || '-' }}</span></td>
+                  <td><span class="badge-count">{{ product.TotalQuantity }}</span></td>
+                  <td class="table-cell-money">Rs {{ formatPrice(product.AvgUnitPrice) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(product.TotalRevenue) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(product.TotalDiscounts) }}</td>
+                  <td><span class="badge-count">{{ product.SaleCount }}</span></td>
+                </tr>
+                <tr v-if="productSales.length === 0">
+                  <td colspan="7" class="text-center empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No data available for the selected date range</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- VAT Report -->
       <div v-if="activeTab === 'vat'" class="tab-content">
         <div class="export-section">
-          <button @click="exportVATReport" class="btn btn-primary" :disabled="!vatReport || loading">
-            📥 Export to Excel
+          <button @click="exportVATReport" class="btn btn-primary export-btn" :disabled="!vatReport || loading">
+            <span class="btn-icon">📥</span>
+            Export to Excel
           </button>
         </div>
-        <div v-if="loading" class="loading">Loading...</div>
+        <div v-if="loading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
         <div v-else-if="vatReport">
           <div class="summary-grid" style="margin-bottom: 30px;">
             <div class="summary-card">
@@ -216,8 +276,8 @@
             </div>
           </div>
           
-          <h3 style="margin-bottom: 15px;">VAT Item Details</h3>
-          <div style="max-height: 500px; overflow-y: auto;">
+          <h3 class="section-title">VAT Item Details</h3>
+          <div class="table-wrapper scrollable">
             <table class="table">
               <thead>
                 <tr>
@@ -259,7 +319,10 @@
                   </td>
                 </tr>
                 <tr v-if="vatReport.details.length === 0">
-                  <td colspan="12" class="text-center">No data available</td>
+                  <td colspan="12" class="text-center empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No data available for the selected date range</p>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -270,53 +333,66 @@
       <!-- VAT Summary by Date -->
       <div v-if="activeTab === 'vat-summary'" class="tab-content">
         <div class="export-section">
-          <button @click="exportVATSummary" class="btn btn-primary" :disabled="vatSummary.length === 0 || loading">
-            📥 Export to Excel
+          <button @click="exportVATSummary" class="btn btn-primary export-btn" :disabled="vatSummary.length === 0 || loading">
+            <span class="btn-icon">📥</span>
+            Export to Excel
           </button>
         </div>
-        <div v-if="loading" class="loading">Loading...</div>
+        <div v-if="loading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
         <div v-else>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Sale Count</th>
-                <th>VAT Items</th>
-                <th>Expected VAT</th>
-                <th>Actual VAT Collected</th>
-                <th>Excluded VAT</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="day in vatSummary" :key="day.SaleDate">
-                <td>{{ formatDate(day.SaleDate) }}</td>
-                <td>{{ day.SaleCount }}</td>
-                <td>{{ day.VATItemCount }}</td>
-                <td>Rs {{ formatPrice(day.TotalExpectedVAT) }}</td>
-                <td>Rs {{ formatPrice(day.TotalVATCollected) }}</td>
-                <td>
-                  <span v-if="day.TotalExcludedVAT > 0" style="color: #dc3545; font-weight: 600;">
-                    Rs {{ formatPrice(day.TotalExcludedVAT) }}
-                  </span>
-                  <span v-else>-</span>
-                </td>
-              </tr>
-              <tr v-if="vatSummary.length === 0">
-                <td colspan="6" class="text-center">No data available</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="table-wrapper">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Sale Count</th>
+                  <th>VAT Items</th>
+                  <th>Expected VAT</th>
+                  <th>Actual VAT Collected</th>
+                  <th>Excluded VAT</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="day in vatSummary" :key="day.SaleDate">
+                  <td class="table-cell-primary">{{ formatDate(day.SaleDate) }}</td>
+                  <td><span class="badge-count">{{ day.SaleCount }}</span></td>
+                  <td><span class="badge-count">{{ day.VATItemCount }}</span></td>
+                  <td class="table-cell-money">Rs {{ formatPrice(day.TotalExpectedVAT) }}</td>
+                  <td class="table-cell-money">Rs {{ formatPrice(day.TotalVATCollected) }}</td>
+                  <td>
+                    <span v-if="day.TotalExcludedVAT > 0" class="excluded-vat-amount">
+                      Rs {{ formatPrice(day.TotalExcludedVAT) }}
+                    </span>
+                    <span v-else>-</span>
+                  </td>
+                </tr>
+                <tr v-if="vatSummary.length === 0">
+                  <td colspan="6" class="text-center empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No data available for the selected date range</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <!-- Net Sales Summary (Sales - Returns) -->
       <div v-if="activeTab === 'net-sales'" class="tab-content">
         <div class="export-section">
-          <button @click="exportNetSalesSummary" class="btn btn-primary" :disabled="!netSalesSummary || loading">
-            📥 Export to Excel
+          <button @click="exportNetSalesSummary" class="btn btn-primary export-btn" :disabled="!netSalesSummary || loading">
+            <span class="btn-icon">📥</span>
+            Export to Excel
           </button>
         </div>
-        <div v-if="loading" class="loading">Loading...</div>
+        <div v-if="loading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>Loading report data...</p>
+        </div>
         <div v-else-if="netSalesSummary" class="summary-grid">
           <div class="summary-card" style="background: #e3f2fd; border-color: #2196f3;">
             <div class="summary-label">Total Sales</div>
@@ -638,6 +714,18 @@ export default {
       const end = this.filters.endDate ? this.filters.endDate.replace(/-/g, '') : 'all'
       return `${start}_to_${end}`
     },
+    getTabIcon(tabId) {
+      const icons = {
+        'net-sales': '💰',
+        'payment': '💳',
+        'products': '🏆',
+        'daily': '📈',
+        'product-detail': '📦',
+        'vat': '🧾',
+        'vat-summary': '📊'
+      }
+      return icons[tabId] || '📋'
+    },
     exportNetSalesSummary() {
       if (!this.netSalesSummary) return
       
@@ -667,163 +755,409 @@ export default {
 <style scoped>
 .reports-container {
   width: 100%;
+  padding-bottom: 48px;
 }
 
+/* Page Header */
 .page-header {
-  margin-bottom: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 28px;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  color: white;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-icon {
+  font-size: 48px;
+  line-height: 1;
 }
 
 .page-header h1 {
-  margin: 0;
-  font-size: 28px;
+  margin: 0 0 8px 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: white;
 }
 
+.header-subtitle {
+  margin: 0;
+  font-size: 16px;
+  opacity: 0.9;
+  color: white;
+}
+
+/* Filter Section */
 .filter-section {
+  margin-bottom: 24px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.filter-icon {
+  font-size: 24px;
 }
 
 .filter-section h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
 }
 
 .filter-row {
   display: flex;
-  gap: 15px;
+  gap: 16px;
   align-items: flex-end;
   flex-wrap: wrap;
 }
 
 .filter-row .form-group {
   flex: 1;
-  min-width: 150px;
+  min-width: 180px;
 }
 
-.filter-row .form-group:last-child {
+.filter-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex: 0 0 auto;
+}
+
+.btn-icon {
+  margin-right: 6px;
+  font-size: 16px;
+}
+
+/* Tabs */
+.tabs-card {
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
 }
 
 .tabs {
   display: flex;
-  gap: 10px;
-  border-bottom: 2px solid #eee;
-  margin-bottom: 20px;
+  gap: 4px;
+  border-bottom: 2px solid #f0f0f0;
+  margin-bottom: 24px;
   flex-wrap: wrap;
+  padding: 0 8px;
+  background: #fafafa;
 }
 
 .tab-button {
-  padding: 12px 20px;
+  padding: 14px 20px;
   border: none;
-  background: none;
+  background: transparent;
   cursor: pointer;
   font-size: 14px;
-  color: #666;
-  border-bottom: 2px solid transparent;
-  transition: all 0.3s;
+  color: #64748b;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -2px;
+  position: relative;
 }
 
 .tab-button:hover {
-  color: #007bff;
-  border-bottom-color: #007bff;
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
 }
 
 .tab-button.active {
-  color: #007bff;
-  border-bottom-color: #007bff;
+  color: #667eea;
+  border-bottom-color: #667eea;
   font-weight: 600;
+  background: white;
+}
+
+.tab-icon {
+  font-size: 18px;
+}
+
+.tab-label {
+  white-space: nowrap;
 }
 
 .tab-content {
-  min-height: 200px;
+  min-height: 300px;
+  padding: 0 8px;
 }
 
+/* Export Section */
 .export-section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   display: flex;
   justify-content: flex-end;
 }
 
-.loading {
-  text-align: center;
-  padding: 40px;
-  color: #999;
+.export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
+.export-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.3);
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #f0f0f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading p {
+  margin: 0;
+  font-size: 16px;
+  color: #64748b;
+}
+
+/* Summary Grid */
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 20px;
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .summary-card {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  padding: 24px;
+  border-radius: 16px;
   text-align: center;
-  border: 1px solid #e9ecef;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.summary-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
 .summary-label {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 10px;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .summary-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #2c3e50;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+/* Tables */
+.table-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e9ecef;
+}
+
+.table-wrapper.scrollable {
+  max-height: 500px;
+  overflow-y: auto;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 20px;
-}
-
-.table th,
-.table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #eee;
+  background: white;
 }
 
 .table th {
-  background: #f8f9fa;
+  padding: 16px;
+  text-align: left;
   font-weight: 600;
-  color: #2c3e50;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #475569;
+}
+
+.table tbody tr {
+  transition: all 0.2s ease;
 }
 
 .table tbody tr:hover {
-  background: #f8f9fa;
+  background: #f8fafc;
+  transform: scale(1.01);
+}
+
+.table-cell-primary {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.table-cell-money {
+  font-weight: 600;
+  color: #059669;
+  font-family: 'Courier New', monospace;
+}
+
+/* Badges */
+.badge-count {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.badge-secondary {
+  display: inline-block;
+  background: #e2e8f0;
+  color: #475569;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.rank-badge {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 24px;
+  font-weight: 700;
+  font-size: 12px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+.vat-badge {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.vat-excluded-badge {
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.excluded-vat-amount {
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* Empty State */
+.empty-state {
+  padding: 60px 20px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  color: #94a3b8;
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Section Title */
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 32px 0 20px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e9ecef;
 }
 
 .text-center {
   text-align: center;
 }
 
-.vat-badge {
-  background: #ffc107;
-  color: #333;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.vat-excluded-badge {
-  background: #6c757d;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
+/* Responsive */
 @media (max-width: 768px) {
+  .page-header {
+    padding: 24px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .header-icon {
+    font-size: 40px;
+  }
+
+  .page-header h1 {
+    font-size: 24px;
+  }
+
   .filter-row {
     flex-direction: column;
   }
@@ -831,18 +1165,42 @@ export default {
   .filter-row .form-group {
     width: 100%;
   }
+
+  .filter-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .filter-actions .btn {
+    width: 100%;
+  }
   
   .summary-grid {
     grid-template-columns: 1fr;
   }
+
+  .tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-button {
+    white-space: nowrap;
+    padding: 12px 16px;
+  }
   
+  .table-wrapper {
+    overflow-x: auto;
+  }
+
   .table {
     font-size: 12px;
+    min-width: 600px;
   }
   
   .table th,
   .table td {
-    padding: 8px;
+    padding: 10px 12px;
   }
 }
 </style>
