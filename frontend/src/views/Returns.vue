@@ -127,11 +127,6 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="return-notes-input">Notes (optional)</label>
-            <textarea id="return-notes-input" v-model="returnNotes" class="input" rows="3" placeholder="Return reason..."></textarea>
-          </div>
-
           <div class="cart-actions">
             <button @click="clearCart" class="btn btn-secondary">Clear</button>
             <button 
@@ -214,7 +209,6 @@ export default {
       barcodeInput: '',
       showReceipt: false,
       receiptData: null,
-      returnNotes: ''
     }
   },
   computed: {
@@ -339,7 +333,6 @@ export default {
     },
     clearCart() {
       this.returnCart = []
-      this.returnNotes = ''
     },
     async processReturn() {
       if (this.returnCart.length === 0 || !this.selectedPaymentType) {
@@ -361,7 +354,6 @@ export default {
             discountValue: 0
           })),
           paymentTypeID: this.selectedPaymentType,
-          notes: this.returnNotes
         }
 
         const response = await salesAPI.createReturn(returnData)

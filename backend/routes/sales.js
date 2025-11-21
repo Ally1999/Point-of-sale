@@ -146,7 +146,7 @@ router.post('/return', async (req, res) => {
   const client = await pool.connect();
   
   try {
-    const { items, paymentTypeID, notes } = req.body;
+    const { items, paymentTypeID } = req.body;
     
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'No items to return' });
@@ -218,8 +218,8 @@ router.post('/return', async (req, res) => {
     
     // Create return sale
     const saleResult = await client.query(`
-      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount", "Notes", "IsReturn", "OriginalSaleID")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount", "IsReturn", "OriginalSaleID")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *
     `, [
       saleNumber,
@@ -230,7 +230,6 @@ router.post('/return', async (req, res) => {
       paymentTypeID,
       amountPaid,
       changeAmount,
-      notes || null,
       true,
       null // No original sale ID for standalone returns
     ]);
@@ -402,7 +401,7 @@ router.post('/', async (req, res) => {
   const client = await pool.connect();
   
   try {
-    const { items, paymentTypeID, amountPaid, notes, saleDiscount } = req.body;
+    const { items, paymentTypeID, amountPaid, saleDiscount } = req.body;
     
     await client.query('BEGIN');
     
@@ -474,8 +473,8 @@ router.post('/', async (req, res) => {
     
     // Create sale
     const saleResult = await client.query(`
-      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount", "Notes")
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `, [
       saleNumber,
@@ -485,8 +484,7 @@ router.post('/', async (req, res) => {
       totalAmount,
       paymentTypeID,
       finalAmountPaid,
-      changeAmount,
-      notes || null
+      changeAmount
     ]);
     
     const saleID = saleResult.rows[0].SaleID;

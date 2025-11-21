@@ -147,7 +147,7 @@
             </div>
           </div>
 
-          <div class="discount-section">
+          <div class="payment-discount-row">
             <div class="form-group">
               <label for="sale-discount-input">Sale Discount (Amount)</label>
               <input
@@ -160,9 +160,7 @@
                 placeholder="Enter discount amount"
               />
             </div>
-          </div>
-
-          <div class="payment-section">
+          
             <div class="form-group">
               <label for="payment-type-select">Payment Type</label>
               <select id="payment-type-select" v-model="selectedPaymentType" class="input">
@@ -497,7 +495,6 @@ export default {
               discountValue: item.discountValue || 0
           })),
           paymentTypeID: this.selectedPaymentType,
-          notes: '',
           saleDiscount: this.saleDiscountValue > 0 ? { value: this.saleDiscountValue } : null
         }
 
@@ -1267,6 +1264,37 @@ export default {
   flex: 1;
 }
 
+.payment-discount-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  border-top: 1px solid rgba(15,23,42,0.08);
+  padding-top: 12px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.payment-discount-row .form-group {
+  margin-bottom: 0;
+}
+
+.payment-discount-row label {
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.payment-discount-row .input,
+.payment-discount-row select {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  height: auto;
+}
+
+@media (max-width: 640px) {
+  .payment-discount-row {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 1200px) {
   .pos-layout {
     grid-template-columns: 1fr;

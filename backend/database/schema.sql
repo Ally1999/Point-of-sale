@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS "Sales" (
     "PaymentTypeID" INT,
     "AmountPaid" DECIMAL(18,2) NOT NULL,
     "ChangeAmount" DECIMAL(18,2) DEFAULT 0.00,
-    "Notes" VARCHAR(500),
     "IsVoided" BOOLEAN DEFAULT false,
     "VoidedAt" TIMESTAMP NULL,
     "IsReturn" BOOLEAN DEFAULT false,

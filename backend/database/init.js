@@ -71,7 +71,6 @@ export const initializeDatabase = async () => {
           "PaymentTypeID" INT,
           "AmountPaid" DECIMAL(18,2) NOT NULL,
           "ChangeAmount" DECIMAL(18,2) DEFAULT 0.00,
-          "Notes" VARCHAR(500),
           "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY ("PaymentTypeID") REFERENCES "PaymentTypes"("PaymentTypeID")
         )
