@@ -5,8 +5,17 @@ import { join, basename } from 'path';
 import { constants } from 'fs';
 import cron from 'node-cron';
 import config from './backup.config.js';
+import { updateBackupStatus } from './backend/utils/backupStatusStore.js';
 
 const execAsync = promisify(exec);
+
+async function safeUpdateCloudStatus(updates) {
+  try {
+    await updateBackupStatus('cloud', updates);
+  } catch (error) {
+    console.error('Failed to persist cloud backup status:', error.message);
+  }
+}
 
 /**
  * Find rclone executable path
@@ -348,6 +357,15 @@ class CloudBackup {
    * Main backup process
    */
   async performBackup() {
+    const startedAt = new Date();
+    const startedAtIso = startedAt.toISOString();
+    
+    await safeUpdateCloudStatus({
+      status: 'running',
+      lastRun: startedAtIso,
+      message: 'Cloud backup in progress'
+    });
+
     console.log('\n========================================');
     console.log(`Cloud Backup Started: ${new Date().toLocaleString()}`);
     console.log('========================================\n');
@@ -356,6 +374,13 @@ class CloudBackup {
     const isSetup = await this.checkRcloneSetup();
     if (!isSetup) {
       console.error('\n✗ Backup aborted: Rclone not properly configured');
+      await safeUpdateCloudStatus({
+        status: 'failed',
+        lastRun: startedAtIso,
+        lastFailure: new Date().toISOString(),
+        errorMessage: 'Rclone not properly configured',
+        message: 'Rclone setup incomplete'
+      });
       return;
     }
 
@@ -397,9 +422,26 @@ class CloudBackup {
       console.log('\n========================================');
       console.log('Cloud Backup Completed Successfully');
       console.log('========================================\n');
+
+      await safeUpdateCloudStatus({
+        status: 'success',
+        lastRun: startedAtIso,
+        lastSuccess: new Date().toISOString(),
+        errorMessage: null,
+        message: missingFiles.length === 0
+          ? 'No new files needed upload'
+          : `Uploaded ${missingFiles.length} file(s) and applied retention policy`
+      });
     } catch (error) {
       console.error('\n✗ Backup failed:', error.message);
       console.error(error.stack);
+      await safeUpdateCloudStatus({
+        status: 'failed',
+        lastRun: startedAtIso,
+        lastFailure: new Date().toISOString(),
+        errorMessage: error.message,
+        message: error.message || 'Cloud backup failed'
+      });
     }
   }
 
@@ -428,6 +470,12 @@ class CloudBackup {
 
 // Main execution
 const cloudConfig = config?.cloud ?? {};
+
+if (cloudConfig.enabled === false) {
+  console.log('Cloud backup disabled via backup.config.js.');
+  process.exit(0);
+}
+
 const backup = new CloudBackup(cloudConfig);
 
 // Run once if --once flag is provided

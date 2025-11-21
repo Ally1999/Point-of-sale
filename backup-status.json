@@ -1,0 +1,20 @@
+{
+  "cloud": {
+    "status": "success",
+    "lastRun": "2025-11-21T10:19:30.095Z",
+    "lastSuccess": "2025-11-21T10:19:32.976Z",
+    "lastFailure": "2025-11-21T08:37:30.604Z",
+    "message": "No new files needed upload",
+    "errorMessage": null,
+    "updatedAt": "2025-11-21T10:19:32.977Z"
+  },
+  "postgres": {
+    "status": "success",
+    "lastRun": "2025-11-21T10:19:30.953Z",
+    "lastSuccess": "2025-11-21T10:19:31.229Z",
+    "lastFailure": "2025-11-21T10:11:35.328Z",
+    "message": "Backup saved to pos-backup-2025-11-21-14-19-30.sql",
+    "errorMessage": null,
+    "updatedAt": "2025-11-21T10:19:31.230Z"
+  }
+}

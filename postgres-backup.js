@@ -4,8 +4,22 @@ import { createWriteStream } from 'fs';
 import { join } from 'path';
 import cron from 'node-cron';
 import backupConfig from './backup.config.js';
+import { updateBackupStatus } from './backend/utils/backupStatusStore.js';
 
 const config = backupConfig?.postgres ?? {};
+
+if (config.enabled === false) {
+  console.log('PostgreSQL backup disabled via backup.config.js.');
+  process.exit(0);
+}
+
+async function safeUpdateDbStatus(updates) {
+  try {
+    await updateBackupStatus('postgres', updates);
+  } catch (error) {
+    console.error('Failed to persist DB backup status:', error.message);
+  }
+}
 
 /**
  * Ensure the backup directory exists
@@ -128,6 +142,15 @@ async function cleanupBackups() {
  * Perform one full backup cycle
  */
 async function performBackup() {
+  const startedAt = new Date();
+  const startedAtIso = startedAt.toISOString();
+
+  await safeUpdateDbStatus({
+    status: 'running',
+    lastRun: startedAtIso,
+    message: 'Database backup in progress'
+  });
+
   console.log('\n=== PostgreSQL Backup ===');
   console.log(`Start: ${new Date().toLocaleString()}`);
 
@@ -142,8 +165,23 @@ async function performBackup() {
 
     await cleanupBackups();
     console.log('✓ Cleanup complete');
+
+    await safeUpdateDbStatus({
+      status: 'success',
+      lastRun: startedAtIso,
+      lastSuccess: new Date().toISOString(),
+      errorMessage: null,
+      message: `Backup saved to ${filename}`
+    });
   } catch (error) {
     console.error('✗ Backup failed:', error.message);
+    await safeUpdateDbStatus({
+      status: 'failed',
+      lastRun: startedAtIso,
+      lastFailure: new Date().toISOString(),
+      errorMessage: error.message,
+      message: error.message || 'Database backup failed'
+    });
   } finally {
     console.log(`End: ${new Date().toLocaleString()}`);
     console.log('==========================\n');

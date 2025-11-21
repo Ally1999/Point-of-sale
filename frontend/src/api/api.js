@@ -47,5 +47,10 @@ export const reportsAPI = {
   getVATSummary: (params) => api.get('/reports/vat-summary', { params })
 }
 
+// System API
+export const systemAPI = {
+  getBackupStatus: () => api.get('/backup-status')
+}
+
 export default api
 

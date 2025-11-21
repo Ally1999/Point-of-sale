@@ -7,6 +7,7 @@ import categoryRoutes from './routes/categories.js';
 import saleRoutes from './routes/sales.js';
 import paymentRoutes from './routes/payments.js';
 import reportRoutes from './routes/reports.js';
+import backupStatusRoutes from './routes/backupStatus.js';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/backup-status', backupStatusRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

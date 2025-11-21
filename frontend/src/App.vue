@@ -14,11 +14,16 @@
         </div>
       </div>
     </nav>
+    <BackupStatusBanner />
     <main class="main-content">
       <router-view />
     </main>
   </div>
 </template>
+
+<script setup>
+import BackupStatusBanner from './components/BackupStatusBanner.vue'
+</script>
 
 <style scoped>
 .navbar {
