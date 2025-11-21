@@ -45,8 +45,8 @@
               <span v-else class="non-vat-badge">Non-VAT</span>
             </td>
             <td>
-              <button @click="openEditModal(product)" class="btn btn-secondary" style="margin-right: 5px;">Edit</button>
-              <button @click="deleteProduct(product.ProductID)" class="btn btn-danger">Delete</button>
+              <button @click="openEditModal(product)" class="btn btn-secondary btn-actions" style="margin-right: 5px;">Edit</button>
+              <button @click="deleteProduct(product.ProductID)" class="btn btn-danger btn-actions">Delete</button>
             </td>
           </tr>
         </tbody>
@@ -341,6 +341,11 @@ export default {
   gap: 10px;
   justify-content: flex-end;
   margin-top: 20px;
+}
+
+.btn-actions {
+  font-size: 1rem;
+  padding: 10px 16px;
 }
 </style>
 

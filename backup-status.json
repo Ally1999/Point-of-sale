@@ -1,20 +1,20 @@
 {
   "cloud": {
     "status": "success",
-    "lastRun": "2025-11-21T10:19:30.095Z",
-    "lastSuccess": "2025-11-21T10:19:32.976Z",
+    "lastRun": "2025-11-21T13:00:00.008Z",
+    "lastSuccess": "2025-11-21T13:00:17.514Z",
     "lastFailure": "2025-11-21T08:37:30.604Z",
-    "message": "No new files needed upload",
+    "message": "Uploaded 2 file(s) and applied retention policy",
     "errorMessage": null,
-    "updatedAt": "2025-11-21T10:19:32.977Z"
+    "updatedAt": "2025-11-21T13:00:17.514Z"
   },
   "postgres": {
     "status": "success",
-    "lastRun": "2025-11-21T10:19:30.953Z",
-    "lastSuccess": "2025-11-21T10:19:31.229Z",
+    "lastRun": "2025-11-21T12:00:00.599Z",
+    "lastSuccess": "2025-11-21T12:00:00.943Z",
     "lastFailure": "2025-11-21T10:11:35.328Z",
-    "message": "Backup saved to pos-backup-2025-11-21-14-19-30.sql",
+    "message": "Backup saved to pos-backup-2025-11-21-16-00-00.sql",
     "errorMessage": null,
-    "updatedAt": "2025-11-21T10:19:31.230Z"
+    "updatedAt": "2025-11-21T12:00:00.943Z"
   }
 }

@@ -3,47 +3,6 @@ import { getConnection } from '../config/database.js';
 
 const router = express.Router();
 
-// Sales Summary Report (by date range)
-router.get('/sales-summary', async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    const pool = await getConnection();
-    
-    let query = `
-      SELECT 
-        COUNT(*) as "TotalSales",
-        SUM("TotalAmount") as "TotalRevenue",
-        SUM("SubTotal") as "TotalSubtotal",
-        SUM("VATAmount") as "TotalVAT",
-        SUM("DiscountAmount") as "TotalDiscounts",
-        SUM("AmountPaid") as "TotalAmountPaid",
-        SUM("ChangeAmount") as "TotalChange"
-      FROM "Sales"
-      WHERE 1=1
-    `;
-    const params = [];
-    let paramIndex = 1;
-    
-    if (startDate) {
-      query += ` AND "SaleDate" >= $${paramIndex}`;
-      params.push(new Date(startDate));
-      paramIndex++;
-    }
-    
-    if (endDate) {
-      query += ` AND "SaleDate" <= $${paramIndex}`;
-      params.push(new Date(endDate));
-      paramIndex++;
-    }
-    
-    const result = await pool.query(query, params);
-    res.json(result.rows[0] || {});
-  } catch (error) {
-    console.error('Error fetching sales summary:', error);
-    res.status(500).json({ error: 'Failed to fetch sales summary' });
-  }
-});
-
 // Sales by Payment Method
 router.get('/sales-by-payment', async (req, res) => {
   try {
@@ -60,6 +19,8 @@ router.get('/sales-by-payment', async (req, res) => {
       FROM "Sales" s
       LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
       WHERE 1=1
+        AND (s."IsVoided" != true)
+        AND (s."IsReturn" != true)
     `;
     const params = [];
     let paramIndex = 1;
@@ -101,6 +62,8 @@ router.get('/top-products', async (req, res) => {
       FROM "SaleItems" si
       INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
       WHERE 1=1
+        AND (s."IsVoided" != true)
+        AND (s."IsReturn" != true)
     `;
     const params = [];
     let paramIndex = 1;
@@ -151,6 +114,8 @@ router.get('/daily-sales', async (req, res) => {
         SUM("DiscountAmount") as "TotalDiscounts"
       FROM "Sales"
       WHERE 1=1
+        AND ("IsVoided" != true)
+        AND ("IsReturn" != true)
     `;
     const params = [];
     let paramIndex = 1;
@@ -200,6 +165,8 @@ router.get('/vat-report', async (req, res) => {
       FROM "SaleItems" si
       INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
       WHERE si."IsVAT" = true AND si."VATRate" > 0
+        AND (s."IsVoided" != true)
+        AND (s."IsReturn" != true)
     `;
     const params = [];
     let paramIndex = 1;
@@ -323,6 +290,8 @@ router.get('/vat-summary', async (req, res) => {
       FROM "Sales" s
       LEFT JOIN "SaleItems" si ON s."SaleID" = si."SaleID"
       WHERE 1=1
+        AND (s."IsVoided" != true)
+        AND (s."IsReturn" != true)
     `;
     const params = [];
     let paramIndex = 1;
@@ -353,6 +322,8 @@ router.get('/vat-summary', async (req, res) => {
         INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
         WHERE DATE(s."SaleDate") = $1
           AND si."IsVAT" = true AND si."VATRate" > 0
+          AND (s."IsVoided" != true)
+          AND (s."IsReturn" != true)
       `;
       
       const itemsResult = await pool.query(dateQuery, [row.SaleDate]);
@@ -402,6 +373,7 @@ router.get('/product-sales', async (req, res) => {
       FROM "SaleItems" si
       INNER JOIN "Sales" s ON si."SaleID" = s."SaleID"
       WHERE 1=1
+        AND (s."IsVoided" != true)
     `;
     const params = [];
     let paramIndex = 1;
@@ -431,6 +403,93 @@ router.get('/product-sales', async (req, res) => {
   } catch (error) {
     console.error('Error fetching product sales:', error);
     res.status(500).json({ error: 'Failed to fetch product sales' });
+  }
+});
+
+// Net Sales Summary (Sales - Returns)
+router.get('/net-sales-summary', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const pool = await getConnection();
+    
+    // Get sales summary
+    let salesQuery = `
+      SELECT 
+        COUNT(*) as "TotalSales",
+        SUM("TotalAmount") as "TotalRevenue",
+        SUM("SubTotal") as "TotalSubtotal",
+        SUM("VATAmount") as "TotalVAT",
+        SUM("DiscountAmount") as "TotalDiscounts"
+      FROM "Sales"
+      WHERE 1=1
+        AND ("IsVoided" != true)
+        AND ("IsReturn" != true)
+    `;
+    const params = [];
+    let paramIndex = 1;
+    
+    if (startDate) {
+      salesQuery += ` AND "SaleDate" >= $${paramIndex}`;
+      params.push(new Date(startDate));
+      paramIndex++;
+    }
+    
+    if (endDate) {
+      salesQuery += ` AND "SaleDate" <= $${paramIndex}`;
+      params.push(new Date(endDate));
+      paramIndex++;
+    }
+    
+    const salesResult = await pool.query(salesQuery, params);
+    const sales = salesResult.rows[0] || {};
+    
+    // Get returns summary
+    let returnsQuery = `
+      SELECT 
+        COUNT(*) as "TotalReturns",
+        SUM(ABS("TotalAmount")) as "TotalRefunded",
+        SUM(ABS("SubTotal")) as "TotalSubtotal",
+        SUM(ABS("VATAmount")) as "TotalVAT",
+        SUM(ABS("DiscountAmount")) as "TotalDiscounts"
+      FROM "Sales"
+      WHERE 1=1
+        AND ("IsVoided" != true)
+        AND ("IsReturn" = true)
+    `;
+    const returnParams = [];
+    let returnParamIndex = 1;
+    
+    if (startDate) {
+      returnsQuery += ` AND "SaleDate" >= $${returnParamIndex}`;
+      returnParams.push(new Date(startDate));
+      returnParamIndex++;
+    }
+    
+    if (endDate) {
+      returnsQuery += ` AND "SaleDate" <= $${returnParamIndex}`;
+      returnParams.push(new Date(endDate));
+      returnParamIndex++;
+    }
+    
+    const returnsResult = await pool.query(returnsQuery, returnParams);
+    const returns = returnsResult.rows[0] || {};
+    
+    // Calculate net values
+    const netSales = {
+      TotalSales: (parseFloat(sales.TotalSales || 0)),
+      TotalReturns: (parseFloat(returns.TotalReturns || 0)),
+      TotalRevenue: (parseFloat(sales.TotalRevenue || 0)),
+      TotalRefunded: (parseFloat(returns.TotalRefunded || 0)),
+      NetRevenue: (parseFloat(sales.TotalRevenue || 0)) - (parseFloat(returns.TotalRefunded || 0)),
+      TotalSubtotal: (parseFloat(sales.TotalSubtotal || 0)) - (parseFloat(returns.TotalSubtotal || 0)),
+      TotalVAT: (parseFloat(sales.TotalVAT || 0)) - (parseFloat(returns.TotalVAT || 0)),
+      TotalDiscounts: (parseFloat(sales.TotalDiscounts || 0)) - (parseFloat(returns.TotalDiscounts || 0))
+    };
+    
+    res.json(netSales);
+  } catch (error) {
+    console.error('Error fetching net sales summary:', error);
+    res.status(500).json({ error: 'Failed to fetch net sales summary' });
   }
 });
 

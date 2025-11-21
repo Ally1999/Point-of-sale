@@ -36,42 +36,6 @@
         </button>
       </div>
 
-      <!-- Sales Summary -->
-      <div v-if="activeTab === 'summary'" class="tab-content">
-        <div class="export-section">
-          <button @click="exportSalesSummary" class="btn btn-primary" :disabled="!salesSummary || loading">
-            📥 Export to Excel
-          </button>
-        </div>
-        <div v-if="loading" class="loading">Loading...</div>
-        <div v-else-if="salesSummary" class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-label">Total Sales</div>
-            <div class="summary-value">{{ salesSummary.TotalSales || 0 }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Total Revenue</div>
-            <div class="summary-value">Rs {{ formatPrice(salesSummary.TotalRevenue) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Total Subtotal</div>
-            <div class="summary-value">Rs {{ formatPrice(salesSummary.TotalSubtotal) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Total VAT</div>
-            <div class="summary-value">Rs {{ formatPrice(salesSummary.TotalVAT) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Total Discounts</div>
-            <div class="summary-value">Rs {{ formatPrice(salesSummary.TotalDiscounts) }}</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Total Amount Paid</div>
-            <div class="summary-value">Rs {{ formatPrice(salesSummary.TotalAmountPaid) }}</div>
-          </div>
-        </div>
-      </div>
-
       <!-- Sales by Payment Method -->
       <div v-if="activeTab === 'payment'" class="tab-content">
         <div class="export-section">
@@ -344,6 +308,51 @@
           </table>
         </div>
       </div>
+
+      <!-- Net Sales Summary (Sales - Returns) -->
+      <div v-if="activeTab === 'net-sales'" class="tab-content">
+        <div class="export-section">
+          <button @click="exportNetSalesSummary" class="btn btn-primary" :disabled="!netSalesSummary || loading">
+            📥 Export to Excel
+          </button>
+        </div>
+        <div v-if="loading" class="loading">Loading...</div>
+        <div v-else-if="netSalesSummary" class="summary-grid">
+          <div class="summary-card" style="background: #e3f2fd; border-color: #2196f3;">
+            <div class="summary-label">Total Sales</div>
+            <div class="summary-value">{{ netSalesSummary.TotalSales || 0 }}</div>
+          </div>
+          <div class="summary-card" style="background: #fff3e0; border-color: #ff9800;">
+            <div class="summary-label">Total Returns</div>
+            <div class="summary-value">{{ netSalesSummary.TotalReturns || 0 }}</div>
+          </div>
+          <div class="summary-card" style="background: #e8f5e9; border-color: #4caf50;">
+            <div class="summary-label">Net Revenue</div>
+            <div class="summary-value">Rs {{ formatPrice(netSalesSummary.NetRevenue) }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Total Sales Revenue</div>
+            <div class="summary-value">Rs {{ formatPrice(netSalesSummary.TotalRevenue) }}</div>
+          </div>
+          <div class="summary-card" style="background: #ffebee; border-color: #f44336;">
+            <div class="summary-label">Total Refunded</div>
+            <div class="summary-value">Rs {{ formatPrice(netSalesSummary.TotalRefunded) }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Net Subtotal</div>
+            <div class="summary-value">Rs {{ formatPrice(netSalesSummary.TotalSubtotal) }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Net VAT</div>
+            <div class="summary-value">Rs {{ formatPrice(netSalesSummary.TotalVAT) }}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Net Discounts</div>
+            <div class="summary-value">Rs {{ formatPrice(netSalesSummary.TotalDiscounts) }}</div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -361,14 +370,14 @@ export default {
   },
   data() {
     return {
-      activeTab: 'summary',
+      activeTab: 'net-sales',
       loading: false,
       filters: {
         startDate: '',
         endDate: ''
       },
       tabs: [
-        { id: 'summary', label: 'Sales Summary' },
+        { id: 'net-sales', label: 'Net Sales (Sales - Returns)' },
         { id: 'payment', label: 'Sales by Payment' },
         { id: 'products', label: 'Top Products' },
         { id: 'daily', label: 'Daily Sales' },
@@ -376,7 +385,7 @@ export default {
         { id: 'vat', label: 'VAT Report' },
         { id: 'vat-summary', label: 'VAT Summary' }
       ],
-      salesSummary: null,
+      netSalesSummary: null,
       salesByPayment: [],
       topProducts: [],
       dailySales: [],
@@ -406,7 +415,7 @@ export default {
         if (this.filters.endDate) params.endDate = this.filters.endDate
 
         await Promise.all([
-          this.loadSalesSummary(params),
+          this.loadNetSalesSummary(params),
           this.loadSalesByPayment(params),
           this.loadTopProducts(params),
           this.loadDailySales(params),
@@ -419,14 +428,6 @@ export default {
         console.error(error)
       } finally {
         this.loading = false
-      }
-    },
-    async loadSalesSummary(params) {
-      try {
-        const response = await reportsAPI.getSalesSummary(params)
-        this.salesSummary = response.data
-      } catch (error) {
-        console.error('Error loading sales summary:', error)
       }
     },
     async loadSalesByPayment(params) {
@@ -477,6 +478,14 @@ export default {
         console.error('Error loading VAT summary:', error)
       }
     },
+    async loadNetSalesSummary(params) {
+      try {
+        const response = await reportsAPI.getNetSalesSummary(params)
+        this.netSalesSummary = response.data
+      } catch (error) {
+        console.error('Error loading net sales summary:', error)
+      }
+    },
     applyFilters() {
       this.loadReports()
     },
@@ -506,22 +515,6 @@ export default {
         this.toast.error('Failed to export to Excel')
         console.error(error)
       }
-    },
-    exportSalesSummary() {
-      if (!this.salesSummary) return
-      
-      const data = [
-        { Metric: 'Total Sales', Value: this.salesSummary.TotalSales || 0 },
-        { Metric: 'Total Revenue', Value: `Rs ${this.formatPrice(this.salesSummary.TotalRevenue)}` },
-        { Metric: 'Total Subtotal', Value: `Rs ${this.formatPrice(this.salesSummary.TotalSubtotal)}` },
-        { Metric: 'Total VAT', Value: `Rs ${this.formatPrice(this.salesSummary.TotalVAT)}` },
-        { Metric: 'Total Discounts', Value: `Rs ${this.formatPrice(this.salesSummary.TotalDiscounts)}` },
-        { Metric: 'Total Amount Paid', Value: `Rs ${this.formatPrice(this.salesSummary.TotalAmountPaid)}` },
-        { Metric: 'Total Change', Value: `Rs ${this.formatPrice(this.salesSummary.TotalChange)}` }
-      ]
-      
-      const dateRange = this.getDateRangeString()
-      this.exportToExcel(data, `Sales_Summary_${dateRange}.xlsx`, 'Sales Summary')
     },
     exportSalesByPayment() {
       if (this.salesByPayment.length === 0) return
@@ -644,7 +637,24 @@ export default {
       const start = this.filters.startDate ? this.filters.startDate.replace(/-/g, '') : 'all'
       const end = this.filters.endDate ? this.filters.endDate.replace(/-/g, '') : 'all'
       return `${start}_to_${end}`
-    }
+    },
+    exportNetSalesSummary() {
+      if (!this.netSalesSummary) return
+      
+      const data = [
+        { Metric: 'Total Sales', Value: this.netSalesSummary.TotalSales || 0 },
+        { Metric: 'Total Returns', Value: this.netSalesSummary.TotalReturns || 0 },
+        { Metric: 'Total Sales Revenue', Value: `Rs ${this.formatPrice(this.netSalesSummary.TotalRevenue)}` },
+        { Metric: 'Total Refunded', Value: `Rs ${this.formatPrice(this.netSalesSummary.TotalRefunded)}` },
+        { Metric: 'Net Revenue', Value: `Rs ${this.formatPrice(this.netSalesSummary.NetRevenue)}` },
+        { Metric: 'Net Subtotal', Value: `Rs ${this.formatPrice(this.netSalesSummary.TotalSubtotal)}` },
+        { Metric: 'Net VAT', Value: `Rs ${this.formatPrice(this.netSalesSummary.TotalVAT)}` },
+        { Metric: 'Net Discounts', Value: `Rs ${this.formatPrice(this.netSalesSummary.TotalDiscounts)}` }
+      ]
+      
+      const dateRange = this.getDateRangeString()
+      this.exportToExcel(data, `Net_Sales_Summary_${dateRange}.xlsx`, 'Net Sales Summary')
+    },
   },
   watch: {
     activeTab() {

@@ -21,6 +21,276 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Void a sale
+router.post('/:id/void', async (req, res) => {
+  const pool = await getConnection();
+  const client = await pool.connect();
+  
+  try {
+    const saleId = req.params.id;
+    
+    await client.query('BEGIN');
+    
+    // Check if sale exists and is not already voided
+    const saleCheck = await client.query(`
+      SELECT "IsVoided" 
+      FROM "Sales" 
+      WHERE "SaleID" = $1
+    `, [saleId]);
+    
+    if (saleCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Sale not found' });
+    }
+    
+    if (saleCheck.rows[0].IsVoided) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Sale is already voided' });
+    }
+    
+    // Update sale to voided
+    await client.query(`
+      UPDATE "Sales" 
+      SET "IsVoided" = true, 
+          "VoidedAt" = CURRENT_TIMESTAMP
+      WHERE "SaleID" = $1
+    `, [saleId]);
+    
+    await client.query('COMMIT');
+    
+    // Fetch updated sale
+    const updatedSale = await pool.query(`
+      SELECT s.*, pt."PaymentName" 
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
+      WHERE s."SaleID" = $1
+    `, [saleId]);
+    
+    res.json({
+      success: true,
+      message: 'Sale voided successfully',
+      sale: updatedSale.rows[0]
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error voiding sale:', error);
+    res.status(500).json({ error: 'Failed to void sale', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Unvoid a sale
+router.post('/:id/unvoid', async (req, res) => {
+  const pool = await getConnection();
+  const client = await pool.connect();
+  
+  try {
+    const saleId = req.params.id;
+    
+    await client.query('BEGIN');
+    
+    // Check if sale exists and is voided
+    const saleCheck = await client.query(`
+      SELECT "IsVoided" 
+      FROM "Sales" 
+      WHERE "SaleID" = $1
+    `, [saleId]);
+    
+    if (saleCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Sale not found' });
+    }
+    
+    if (!saleCheck.rows[0].IsVoided) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Sale is not voided' });
+    }
+    
+    // Update sale to unvoided
+    await client.query(`
+      UPDATE "Sales" 
+      SET "IsVoided" = false, 
+          "VoidedAt" = NULL
+      WHERE "SaleID" = $1
+    `, [saleId]);
+    
+    await client.query('COMMIT');
+    
+    // Fetch updated sale
+    const updatedSale = await pool.query(`
+      SELECT s.*, pt."PaymentName" 
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
+      WHERE s."SaleID" = $1
+    `, [saleId]);
+    
+    res.json({
+      success: true,
+      message: 'Sale unvoided successfully',
+      sale: updatedSale.rows[0]
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error unvoiding sale:', error);
+    res.status(500).json({ error: 'Failed to unvoid sale', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Create return sale
+// Create standalone return (without original sale ID)
+router.post('/return', async (req, res) => {
+  const pool = await getConnection();
+  const client = await pool.connect();
+  
+  try {
+    const { items, paymentTypeID, notes } = req.body;
+    
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'No items to return' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Calculate return totals (negative amounts)
+    let totalItemDiscounts = 0;
+    const itemTotals = [];
+    
+    for (const returnItem of items) {
+      let lineTotal = returnItem.quantity * returnItem.unitPrice;
+      let itemDiscountAmount = 0;
+      
+      // Calculate item-level discount if provided
+      if (returnItem.discountValue > 0) {
+        itemDiscountAmount = Math.min(returnItem.discountValue, lineTotal);
+        lineTotal -= itemDiscountAmount;
+        totalItemDiscounts += itemDiscountAmount;
+      }
+      
+      itemTotals.push({
+        lineTotal: -lineTotal, // Negative for return
+        isVAT: returnItem.isVAT,
+        vatRate: returnItem.vatRate || 0,
+        excludeVAT: returnItem.excludeVAT || false
+      });
+    }
+    
+    // Calculate VAT-inclusive total before sale discount
+    const vatInclusiveBeforeSaleDiscount = itemTotals.reduce((sum, item) => sum + Math.abs(item.lineTotal), 0);
+    
+    // Apply sale-level discount if provided
+    let saleDiscountAmount = 0;
+    if (req.body.saleDiscount && req.body.saleDiscount.value > 0) {
+      saleDiscountAmount = -Math.min(req.body.saleDiscount.value, vatInclusiveBeforeSaleDiscount);
+    }
+    
+    // Calculate subtotal and VAT (negative values)
+    let subTotal = 0;
+    let vatAmount = 0;
+    
+    for (const item of itemTotals) {
+      let discountedLineTotal = Math.abs(item.lineTotal);
+      
+      // Apply proportional sale discount
+      if (vatInclusiveBeforeSaleDiscount > 0 && Math.abs(saleDiscountAmount) > 0) {
+        const itemProportion = discountedLineTotal / vatInclusiveBeforeSaleDiscount;
+        discountedLineTotal -= Math.abs(saleDiscountAmount) * itemProportion;
+      }
+      
+      // Extract base price and VAT if VAT is included (and not excluded)
+      if (item.isVAT && item.vatRate > 0 && !item.excludeVAT) {
+        const vat = (discountedLineTotal * item.vatRate) / 100;
+        const basePrice = discountedLineTotal - vat;
+        subTotal -= basePrice;
+        vatAmount -= vat;
+      } else {
+        subTotal -= discountedLineTotal;
+      }
+    }
+    
+    // Total is negative for return
+    const totalAmount = -(vatInclusiveBeforeSaleDiscount - Math.abs(saleDiscountAmount));
+    const amountPaid = totalAmount; // Refund amount
+    const changeAmount = 0;
+    const saleNumber = 'RET-' + uuidv4().substring(0, 8).toUpperCase();
+    
+    // Create return sale
+    const saleResult = await client.query(`
+      INSERT INTO "Sales" ("SaleNumber", "SubTotal", "DiscountAmount", "VATAmount", "TotalAmount", "PaymentTypeID", "AmountPaid", "ChangeAmount", "Notes", "IsReturn", "OriginalSaleID")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+    `, [
+      saleNumber,
+      subTotal,
+      saleDiscountAmount,
+      vatAmount,
+      totalAmount,
+      paymentTypeID,
+      amountPaid,
+      changeAmount,
+      notes || null,
+      true,
+      null // No original sale ID for standalone returns
+    ]);
+    
+    const returnSaleID = saleResult.rows[0].SaleID;
+    
+    // Create return sale items (with negative quantities)
+    for (const returnItem of items) {
+      let lineTotal = returnItem.quantity * returnItem.unitPrice;
+      let itemDiscountAmount = 0;
+      
+      // Calculate item-level discount
+      if (returnItem.discountValue > 0) {
+        itemDiscountAmount = Math.min(returnItem.discountValue, lineTotal);
+        lineTotal -= itemDiscountAmount;
+      }
+      
+      await client.query(`
+        INSERT INTO "SaleItems" ("SaleID", "ProductID", "ProductName", "Barcode", "Quantity", "UnitPrice", "DiscountAmount", "IsVAT", "VATRate", "ExcludeVAT", "LineTotal")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [
+        returnSaleID,
+        returnItem.productID,
+        returnItem.productName,
+        returnItem.barcode,
+        -returnItem.quantity, // Negative quantity
+        returnItem.unitPrice,
+        itemDiscountAmount,
+        returnItem.isVAT ? true : false,
+        returnItem.vatRate || 0,
+        returnItem.excludeVAT ? true : false,
+        -lineTotal // Negative line total
+      ]);
+    }
+    
+    await client.query('COMMIT');
+    
+    // Fetch complete return sale with items
+    const completeSale = await pool.query(`
+      SELECT s.*, pt."PaymentName" 
+      FROM "Sales" s
+      LEFT JOIN "PaymentTypes" pt ON s."PaymentTypeID" = pt."PaymentTypeID"
+      WHERE s."SaleID" = $1
+    `, [returnSaleID]);
+    
+    const saleItems = await pool.query('SELECT * FROM "SaleItems" WHERE "SaleID" = $1', [returnSaleID]);
+    
+    res.status(201).json({
+      ...completeSale.rows[0],
+      items: saleItems.rows
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating standalone return:', error);
+    res.status(500).json({ error: 'Failed to create return', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Get sale by ID with items
 router.get('/:id', async (req, res) => {
   try {
@@ -301,9 +571,21 @@ function generateESCPOSCommands({ sale, items }) {
   commands += 'TEL: +230 000 0000\n';
   commands += 'VAT No. 00000000\n';
   commands += DIVIDER;
-  commands += 'PAYMENT RECEIPT\n';
+  if (sale?.IsReturn) {
+    commands += 'RETURN RECEIPT\n';
+  } else {
+    commands += 'PAYMENT RECEIPT\n';
+  }
+  if (sale?.IsVoided) {
+    commands += BOLD_ON;
+    commands += '*** VOIDED SALE ***\n';
+    commands += BOLD_OFF;
+  }
   commands += `Date: ${formatDateTime(sale?.SaleDate)}\n`;
   commands += `Receipt No: ${sale?.SaleNumber || 'N/A'}\n`;
+  if (sale?.IsVoided && sale?.VoidedAt) {
+    commands += `Voided: ${formatDateTime(sale?.VoidedAt)}\n`;
+  }
   commands += DIVIDER;
   commands += LEFT;
 
@@ -544,9 +826,17 @@ function generateThermalReceipt({ sale, items, width = 300 }) {
       <div>TEL: +230 000 0000</div>
       <div>VAT No. 00000000</div>
       <div class="divider"></div>
-      <div>PAYMENT RECEIPT</div>
+      ${sale?.IsReturn ? '<div>RETURN RECEIPT</div>' : '<div>PAYMENT RECEIPT</div>'}
+      ${sale?.IsVoided ? `
+        <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 8px; margin: 8px 0; border-radius: 4px;">
+          <div style="font-weight: bold; color: #856404;">*** VOIDED SALE ***</div>
+        </div>
+      ` : ''}
       <div>Date: ${paymentDate}</div>
       <div>Receipt No: ${sale?.SaleNumber || 'N/A'}</div>
+      ${sale?.IsVoided && sale?.VoidedAt ? `
+        <div>Voided: ${formatDateTime(sale?.VoidedAt)}</div>
+      ` : ''}
       <div class="divider"></div>
     </div>
   `;

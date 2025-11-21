@@ -94,6 +94,53 @@ export const initializeDatabase = async () => {
       console.error('Error adding discount columns to Sales:', error.message);
     }
     
+    // Add void columns to Sales table if they don't exist
+    try {
+      const isVoidedCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'Sales' AND column_name = 'IsVoided'
+      `);
+      if (isVoidedCheck.rows.length === 0) {
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "IsVoided" BOOLEAN DEFAULT false');
+      }
+      
+      const voidedAtCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'Sales' AND column_name = 'VoidedAt'
+      `);
+      if (voidedAtCheck.rows.length === 0) {
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "VoidedAt" TIMESTAMP NULL');
+      }
+    } catch (error) {
+      console.error('Error adding void columns to Sales:', error.message);
+    }
+    
+    // Add return columns to Sales table if they don't exist
+    try {
+      const isReturnCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'Sales' AND column_name = 'IsReturn'
+      `);
+      if (isReturnCheck.rows.length === 0) {
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "IsReturn" BOOLEAN DEFAULT false');
+      }
+      
+      const originalSaleIdCheck = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'Sales' AND column_name = 'OriginalSaleID'
+      `);
+      if (originalSaleIdCheck.rows.length === 0) {
+        await pool.query('ALTER TABLE "Sales" ADD COLUMN "OriginalSaleID" INT NULL');
+        await pool.query('ALTER TABLE "Sales" ADD CONSTRAINT "FK_Sales_OriginalSale" FOREIGN KEY ("OriginalSaleID") REFERENCES "Sales"("SaleID")');
+      }
+    } catch (error) {
+      console.error('Error adding return columns to Sales:', error.message);
+    }
+    
     // Create SaleItems Table
     try {
       await pool.query(`

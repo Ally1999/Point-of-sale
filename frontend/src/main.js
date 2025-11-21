@@ -8,12 +8,14 @@ import POS from './views/POS.vue'
 import Products from './views/Products.vue'
 import Sales from './views/Sales.vue'
 import Reports from './views/Reports.vue'
+import Returns from './views/Returns.vue'
 
 const routes = [
   { path: '/', redirect: '/pos' },
   { path: '/pos', component: POS },
   { path: '/products', component: Products },
   { path: '/sales', component: Sales },
+  { path: '/returns', component: Returns },
   { path: '/reports', component: Reports }
 ]
 

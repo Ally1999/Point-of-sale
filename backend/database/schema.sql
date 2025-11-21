@@ -49,8 +49,13 @@ CREATE TABLE IF NOT EXISTS "Sales" (
     "AmountPaid" DECIMAL(18,2) NOT NULL,
     "ChangeAmount" DECIMAL(18,2) DEFAULT 0.00,
     "Notes" VARCHAR(500),
+    "IsVoided" BOOLEAN DEFAULT false,
+    "VoidedAt" TIMESTAMP NULL,
+    "IsReturn" BOOLEAN DEFAULT false,
+    "OriginalSaleID" INT NULL,
     "CreatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY ("PaymentTypeID") REFERENCES "PaymentTypes"("PaymentTypeID")
+    FOREIGN KEY ("PaymentTypeID") REFERENCES "PaymentTypes"("PaymentTypeID"),
+    FOREIGN KEY ("OriginalSaleID") REFERENCES "Sales"("SaleID")
 );
 
 -- Sale Items Table

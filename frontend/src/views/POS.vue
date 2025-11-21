@@ -1,15 +1,20 @@
 <template>
-  <div class="pos-container" aria-label="Point of Sale workspace">
+  <div class="pos-container pos-page" aria-label="Point of Sale workspace">
+    <div class="pos-banner">
+      <div class="pos-banner-content">
+        <span class="pos-text">Point of Sale</span>
+      </div>
+    </div>
     <div class="pos-layout">
       <!-- Product Search/Scan Section -->
       <section class="pos-left" aria-label="Product lookup and quick add">
-        <div class="card">
+        <div class="card pos-card">
           <header class="section-header">
             <div>
-              <h2>Scan or Tap Products</h2>
+              <h2 class="pos-header">Scan or Tap Products</h2>
               <p class="section-subtitle">Enter a barcode or tap an item to add it to the cart.</p>
             </div>
-            <span class="badge" aria-live="polite">{{ filteredProducts.length }} items</span>
+            <span class="badge pos-badge" aria-live="polite">{{ filteredProducts.length }} items</span>
           </header>
           <div class="form-group">
             <label for="product-search-input">Barcode / Product Search</label>
@@ -56,13 +61,13 @@
 
       <!-- Cart Section -->
       <section class="pos-right" aria-label="Cart and checkout">
-        <div class="card cart-card">
+        <div class="card cart-card pos-cart-card">
           <header class="section-header">
             <div>
-              <h2>Cart</h2>
+              <h2 class="pos-header">Cart</h2>
               <p class="section-subtitle">Review quantities, discounts, and taxes.</p>
             </div>
-            <span class="badge">{{ cart.length }} selected</span>
+            <span class="badge pos-badge">{{ cart.length }} selected</span>
           </header>
           <div class="cart-items" role="list" aria-live="polite">
             <div v-if="cart.length === 0" class="empty-cart">Cart is empty</div>
@@ -143,7 +148,7 @@
               <span>VAT:</span>
               <span>Rs {{ formatPrice(vatAmount) }}</span>
             </div>
-            <div class="summary-row total">
+            <div class="summary-row total pos-total">
               <span>Total:</span>
               <span>Rs {{ formatPrice(totalAmount) }}</span>
             </div>
@@ -670,6 +675,33 @@ export default {
 </script>
 
 <style scoped>
+.pos-page {
+  width: 100%;
+  padding-bottom: 48px;
+  position: relative;
+}
+
+.pos-banner {
+  background: linear-gradient(135deg, #1f6feb 0%, #174ea6 100%);
+  color: white;
+  padding: 12px 24px;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(31, 111, 235, 0.3);
+}
+
+.pos-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.pos-text {
+  letter-spacing: 0.5px;
+}
+
 .pos-container {
   width: 100%;
   padding-bottom: 48px;
@@ -686,6 +718,26 @@ export default {
   max-height: calc(100vh - 200px);
   overflow-y: auto;
   padding-right: 6px;
+}
+
+.pos-card {
+  border-left: 4px solid #1f6feb;
+}
+
+.pos-cart-card {
+  border-left: 4px solid #1f6feb;
+}
+
+.pos-header {
+  color: #1f6feb;
+  position: relative;
+  padding-left: 12px;
+}
+
+.pos-badge {
+  background: rgba(31, 111, 235, 0.15);
+  color: #174ea6;
+  border: 1px solid rgba(31, 111, 235, 0.3);
 }
 
 .section-header {
@@ -960,11 +1012,12 @@ export default {
 }
 
 .cart-summary {
-  border-top: 2px solid rgba(15,23,42,0.08);
-  background: rgba(31,111,235,0.04);
+  border-top: 2px solid rgba(31, 111, 235, 0.2);
+  background: rgba(31, 111, 235, 0.06);
   border-radius: 18px;
   padding: 18px 22px;
   margin-bottom: 22px;
+  border-left: 3px solid #1f6feb;
 }
 
 .summary-row {
@@ -980,6 +1033,15 @@ export default {
   border-top: 2px solid rgba(15,23,42,0.12);
   padding-top: 12px;
   margin-top: 12px;
+}
+
+.pos-total {
+  color: #25a05c !important;
+  background: rgba(37, 160, 92, 0.08);
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-top: 8px;
+  border: 2px solid rgba(37, 160, 92, 0.2);
 }
 
 .cart-actions {

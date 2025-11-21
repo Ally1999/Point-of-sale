@@ -28,7 +28,10 @@ export const salesAPI = {
   getAll: () => api.get('/sales'),
   getById: (id) => api.get(`/sales/${id}`),
   create: (data) => api.post('/sales', data),
-  printThermalReceipt: (saleId, options = {}) => api.post(`/sales/${saleId}/print-thermal-receipt`, options)
+  printThermalReceipt: (saleId, options = {}) => api.post(`/sales/${saleId}/print-thermal-receipt`, options),
+  void: (saleId) => api.post(`/sales/${saleId}/void`),
+  unvoid: (saleId) => api.post(`/sales/${saleId}/unvoid`),
+  createReturn: (data) => api.post('/sales/return', data)
 }
 
 // Payments API
@@ -38,13 +41,13 @@ export const paymentsAPI = {
 
 // Reports API
 export const reportsAPI = {
-  getSalesSummary: (params) => api.get('/reports/sales-summary', { params }),
   getSalesByPayment: (params) => api.get('/reports/sales-by-payment', { params }),
   getTopProducts: (params) => api.get('/reports/top-products', { params }),
   getDailySales: (params) => api.get('/reports/daily-sales', { params }),
   getProductSales: (params) => api.get('/reports/product-sales', { params }),
   getVATReport: (params) => api.get('/reports/vat-report', { params }),
-  getVATSummary: (params) => api.get('/reports/vat-summary', { params })
+  getVATSummary: (params) => api.get('/reports/vat-summary', { params }),
+  getNetSalesSummary: (params) => api.get('/reports/net-sales-summary', { params })
 }
 
 // System API

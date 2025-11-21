@@ -1,15 +1,4 @@
 export default {
-  cloud: {
-    enabled: true,
-    rcloneRemote: "drive:",
-    localFolder: "C:\\Codes\\backup",
-    cloudFolder: "Backups/",
-    schedule: "* 15 * * * *",
-    runOnStart: false,
-    maxFilesToKeep: 7,
-    daysToKeep: null
-  },
-
   postgres: {
     dbHost: "localhost",
     dbPort: 5432,
@@ -24,7 +13,17 @@ export default {
     maxBackups: 7,
     daysToKeep: null,
     runOnStart: false,
-    schedule: "* 15 * * * *"
+    schedule: "0 16 * * *"
+  },
+  cloud: {
+    enabled: true,
+    rcloneRemote: "drive:",
+    localFolder: "C:\\Codes\\backup",
+    cloudFolder: "Backups/",
+    schedule: "0 17 * * *",
+    runOnStart: false,
+    maxFilesToKeep: 7,
+    daysToKeep: null
   }
 };
 

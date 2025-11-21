@@ -15,12 +15,17 @@
             <th>VAT</th>
             <th>Total</th>
             <th>Payment</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="sale in sales" :key="sale.SaleID">
-            <td>{{ sale.SaleNumber }}</td>
+          <tr v-for="sale in sales" :key="sale.SaleID" :class="{ 'voided-row': sale.IsVoided }">
+            <td>
+              {{ sale.SaleNumber }}
+              <span v-if="sale.IsVoided" class="void-badge">VOIDED</span>
+              <span v-if="sale.IsReturn" class="return-badge">RETURN</span>
+            </td>
             <td>{{ formatDate(sale.SaleDate) }}</td>
             <td>{{ sale.itemCount || '-' }}</td>
             <td>Rs {{ formatPrice(sale.SubTotal) }}</td>
@@ -28,7 +33,28 @@
             <td>Rs {{ formatPrice(sale.TotalAmount) }}</td>
             <td>{{ sale.PaymentName }}</td>
             <td>
-              <button @click="viewReceipt(sale.SaleID)" class="btn btn-primary">View Receipt</button>
+              <span v-if="sale.IsVoided" class="status-badge voided">Voided</span>
+              <span v-else-if="sale.IsReturn" class="status-badge return">Return</span>
+              <span v-else class="status-badge active">Active</span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button @click="viewReceipt(sale.SaleID)" class="btn btn-primary">View Receipt</button>
+                <button 
+                  v-if="!sale.IsVoided && !sale.IsReturn" 
+                  @click="voidSale(sale.SaleID)" 
+                  class="btn btn-danger"
+                >
+                  Void Sale
+                </button>
+                <button 
+                  v-if="sale.IsVoided" 
+                  @click="unvoidSale(sale.SaleID)" 
+                  class="btn btn-success"
+                >
+                  Unvoid Sale
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -42,6 +68,14 @@
           <h2>Receipt</h2>
           <p>{{ receiptData.SaleNumber }}</p>
           <p>{{ formatDate(receiptData.SaleDate) }}</p>
+          <div v-if="receiptData.IsVoided" class="void-notice">
+            <strong>⚠️ THIS SALE HAS BEEN VOIDED</strong>
+            <p v-if="receiptData.VoidedAt">Voided on: {{ formatDate(receiptData.VoidedAt) }}</p>
+          </div>
+          <div v-if="receiptData.IsReturn" class="return-notice">
+            <strong>↩️ RETURN SALE</strong>
+            <p v-if="receiptData.OriginalSaleID">Original Sale: {{ receiptData.OriginalSaleID }}</p>
+          </div>
         </div>
         <div class="receipt-items">
           <div v-for="item in receiptData.items" :key="item.SaleItemID" class="receipt-item">
@@ -84,10 +118,25 @@
         </div>
         <div class="receipt-actions">
           <button @click="printThermalReceipt" class="btn btn-primary">Print Receipt</button>
+          <button 
+            v-if="!receiptData.IsVoided && !receiptData.IsReturn" 
+            @click="voidSale(receiptData.SaleID)" 
+            class="btn btn-danger"
+          >
+            Void Sale
+          </button>
+          <button 
+            v-if="receiptData.IsVoided" 
+            @click="unvoidSale(receiptData.SaleID)" 
+            class="btn btn-success"
+          >
+            Unvoid Sale
+          </button>
           <button @click="closeReceipt" class="btn btn-secondary">Close</button>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -200,6 +249,48 @@ export default {
         console.error(error)
       }
     },
+    async voidSale(saleId) {
+      if (!confirm('Are you sure you want to void this sale?')) {
+        return // User cancelled
+      }
+
+      try {
+        const response = await salesAPI.void(saleId)
+        if (response.data.success) {
+          this.toast.success('Sale voided successfully')
+          this.loadSales()
+          // Refresh receipt data if viewing the voided sale
+          if (this.receiptData && this.receiptData.SaleID === saleId) {
+            await this.viewReceipt(saleId)
+          }
+        }
+      } catch (error) {
+        const errorMessage = error.response?.data?.error || 'Failed to void sale'
+        this.toast.error(errorMessage)
+        console.error(error)
+      }
+    },
+    async unvoidSale(saleId) {
+      if (!confirm('Are you sure you want to unvoid this sale?')) {
+        return // User cancelled
+      }
+
+      try {
+        const response = await salesAPI.unvoid(saleId)
+        if (response.data.success) {
+          this.toast.success('Sale unvoided successfully')
+          this.loadSales()
+          // Refresh receipt data if viewing the unvoided sale
+          if (this.receiptData && this.receiptData.SaleID === saleId) {
+            await this.viewReceipt(saleId)
+          }
+        }
+      } catch (error) {
+        const errorMessage = error.response?.data?.error || 'Failed to unvoid sale'
+        this.toast.error(errorMessage)
+        console.error(error)
+      }
+    },
     async printViaWebUSB(base64Commands) {
       if (!('usb' in navigator)) {
         throw new Error('WebUSB not supported in this browser. Please use Chrome or Edge.')
@@ -283,6 +374,114 @@ export default {
   max-width: 400px;
   padding: 30px;
 }
+
+.voided-row {
+  opacity: 0.6;
+  background-color: #f8f9fa;
+}
+
+.void-badge {
+  display: inline-block;
+  background-color: #dc3545;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: bold;
+  margin-left: 8px;
+  text-transform: uppercase;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background-color: #28a745;
+  color: white;
+}
+
+.status-badge.voided {
+  background-color: #dc3545;
+  color: white;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+  flex: 1;
+  min-width: 100px;
+  font-size: 0.875rem;
+  padding: 10px 16px;
+}
+
+.void-notice {
+  background-color: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.void-notice strong {
+  color: #856404;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.void-notice p {
+  margin: 4px 0;
+  color: #856404;
+  font-size: 13px;
+}
+
+.return-badge {
+  display: inline-block;
+  background-color: #f59e0b;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: bold;
+  margin-left: 8px;
+  text-transform: uppercase;
+}
+
+.status-badge.return {
+  background-color: #f59e0b;
+  color: white;
+}
+
+.return-notice {
+  background-color: #fef3c7;
+  border: 2px solid #f59e0b;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.return-notice strong {
+  color: #92400e;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.return-notice p {
+  margin: 4px 0;
+  color: #92400e;
+  font-size: 13px;
+}
+
 
 .receipt-header {
   text-align: center;
@@ -380,6 +579,8 @@ export default {
 
 .receipt-actions .btn {
   flex: 1;
+  font-size: 0.875rem;
+  padding: 10px 16px;
 }
 
 @media print {

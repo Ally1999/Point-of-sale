@@ -72,6 +72,11 @@ body {
   color: #0f172a;
 }
 
+.btn-warning {
+  background: #f59e0b;
+  color: #fff;
+}
+
 .input {
   padding: 14px 16px;
   border-radius: var(--radius-lg);
