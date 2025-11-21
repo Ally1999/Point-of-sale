@@ -407,11 +407,10 @@ class CloudBackup {
    * Start the scheduled backup
    */
   startScheduler() {
-    // Run daily at 1:00 PM
-    const schedule = '0 13 * * *';
+    const schedule = this.config.schedule || '0 13 * * *';
     
     console.log('Cloud Backup Scheduler Started');
-    console.log(`Schedule: Daily at 1:00 PM (${schedule})`);
+    console.log(`Schedule: ${schedule}`);
     console.log('Waiting for scheduled time...\n');
     
     // Run immediately on start (optional - remove if you only want scheduled runs)
